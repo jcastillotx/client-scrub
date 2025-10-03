@@ -311,7 +311,9 @@ class BRM_Admin {
                 'api_key' => sanitize_text_field($_POST['api_key']),
                 'monitoring_frequency' => sanitize_text_field($_POST['monitoring_frequency']),
                 'max_results_per_client' => intval($_POST['max_results_per_client']),
-                'notification_email' => sanitize_email($_POST['notification_email'])
+                'notification_email' => sanitize_email($_POST['notification_email']),
+                // New: Perplexity model selector
+                'perplexity_model' => sanitize_text_field($_POST['perplexity_model'] ?? 'sonar-pro')
             );
             
             update_option('brm_settings', $settings);
@@ -351,6 +353,21 @@ class BRM_Admin {
                                 <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> or 
                                 <a href="https://www.perplexity.ai/" target="_blank">Perplexity AI</a>
                             </p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">Perplexity Model</th>
+                        <td>
+                            <select name="perplexity_model">
+                                <?php $pm = $settings['perplexity_model'] ?? 'sonar-pro'; ?>
+                                <option value="sonar" <?php selected($pm, 'sonar'); ?>>sonar (lightweight search)</option>
+                                <option value="sonar-pro" <?php selected($pm, 'sonar-pro'); ?>>sonar-pro (advanced search)</option>
+                                <option value="sonar-deep-research" <?php selected($pm, 'sonar-deep-research'); ?>>sonar-deep-research (exhaustive research)</option>
+                                <option value="sonar-reasoning" <?php selected($pm, 'sonar-reasoning'); ?>>sonar-reasoning (fast reasoning)</option>
+                                <option value="sonar-reasoning-pro" <?php selected($pm, 'sonar-reasoning-pro'); ?>>sonar-reasoning-pro (premier reasoning)</option>
+                            </select>
+                            <p class="description">Applies when AI Provider is set to Perplexity. See official docs for model details.</p>
                         </td>
                     </tr>
                     

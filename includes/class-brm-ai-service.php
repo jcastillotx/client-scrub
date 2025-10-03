@@ -259,8 +259,8 @@ class BRM_AI_Service {
     private function make_perplexity_request($prompt) {
         $api_key = $this->settings['api_key'];
 
-        // Use a supported Sonar model per current docs. 'sonar-pro' provides advanced search.
-        $model = 'sonar-pro';
+        // Use a supported Sonar model per current docs. Read from settings with sane default.
+        $model = sanitize_text_field($this->settings['perplexity_model'] ?? 'sonar-pro');
 
         // Encourage concise, structured outputs and limit to recent content.
         $request_data = array(
