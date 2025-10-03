@@ -417,6 +417,9 @@ class BRM_Admin {
                 <p><strong>Provider:</strong> <?php echo ucfirst($cost_estimate['provider']); ?></p>
                 <p><strong>Model:</strong> <?php echo $cost_estimate['model']; ?></p>
                 <p><strong>Cost per request:</strong> $<?php echo number_format($cost_estimate['cost_per_request'], 4); ?> USD</p>
+                <p><strong>Assumed tokens per request:</strong> <?php echo number_format($cost_estimate['tokens_per_request_assumed']); ?></p>
+                <p><strong>Cost per 1K tokens:</strong> $<?php echo number_format($cost_estimate['cost_per_1k_tokens'], 5); ?> USD</p>
+                <p><em>Estimation is approximate.</em></p>
             </div>
         </div>
         <?php
