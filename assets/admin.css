@@ -4,6 +4,103 @@
     margin-top: 20px;
 }
 
+/* Health Status Styles */
+.brm-health-status {
+    margin-bottom: 30px;
+}
+
+.brm-health-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.brm-health-card h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2327;
+    border-bottom: 1px solid #ccd0d4;
+    padding-bottom: 10px;
+}
+
+.brm-health-indicators {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.brm-health-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.brm-health-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #50575e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.brm-health-status {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.status-good {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.status-warning {
+    background: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffecb5;
+}
+
+.status-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c2c7;
+}
+
+.status-info {
+    background: #d1ecf1;
+    color: #055160;
+    border: 1px solid #bee5eb;
+}
+
+.brm-error-message {
+    color: #d63638;
+    font-size: 12px;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+.brm-health-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #ccd0d4;
+}
+
+.brm-health-actions .button {
+    font-size: 12px;
+    padding: 6px 12px;
+    height: auto;
+}
+
 .brm-stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));

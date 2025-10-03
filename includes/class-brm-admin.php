@@ -13,6 +13,7 @@ class BRM_Admin {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
         add_action('wp_ajax_brm_get_stats', array($this, 'ajax_get_stats'));
+        add_action('wp_ajax_brm_test_api', array($this, 'ajax_test_api'));
     }
     
     public function add_admin_menu() {
@@ -75,6 +76,10 @@ class BRM_Admin {
             <h1>Brand Reputation Monitor</h1>
             
             <div class="brm-dashboard">
+                <div class="brm-health-status">
+                    <?php $this->display_health_status(); ?>
+                </div>
+                
                 <div class="brm-stats-grid">
                     <?php $this->display_stats(); ?>
                 </div>
@@ -395,5 +400,109 @@ class BRM_Admin {
         
         $stats = BRM_Monitor::get_monitoring_stats();
         wp_send_json_success($stats);
+    }
+    
+    public function ajax_test_api() {
+        check_ajax_referer('brm_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        $ai_service = new BRM_AI_Service();
+        $test_result = $ai_service->test_api_connectivity();
+        
+        wp_send_json_success($test_result);
+    }
+    
+    private function display_health_status() {
+        $settings = get_option('brm_settings', array());
+        $ai_service = new BRM_AI_Service();
+        $api_configured = !empty($settings['api_key']);
+        $last_scan = get_option('brm_last_scan_time', 'never');
+        
+        // Get API test result
+        $api_test = $ai_service->test_api_connectivity();
+        
+        ?>
+        <div class="brm-health-card">
+            <h3>System Status</h3>
+            <div class="brm-health-indicators">
+                <div class="brm-health-item">
+                    <span class="brm-health-label">API Configuration:</span>
+                    <span class="brm-health-status status-<?php echo $api_configured ? 'good' : 'warning'; ?>">
+                        <?php echo $api_configured ? 'Configured' : 'Not Configured'; ?>
+                    </span>
+                </div>
+                
+                <div class="brm-health-item">
+                    <span class="brm-health-label">API Connectivity:</span>
+                    <span class="brm-health-status status-<?php echo $api_test['success'] ? 'good' : 'error'; ?>">
+                        <?php echo $api_test['success'] ? 'Connected' : 'Failed'; ?>
+                    </span>
+                    <?php if (!$api_test['success']): ?>
+                        <small class="brm-error-message"><?php echo esc_html($api_test['message']); ?></small>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="brm-health-item">
+                    <span class="brm-health-label">AI Provider:</span>
+                    <span class="brm-health-status status-info">
+                        <?php echo esc_html(ucfirst($settings['ai_provider'] ?? 'Not Set')); ?>
+                    </span>
+                </div>
+                
+                <div class="brm-health-item">
+                    <span class="brm-health-label">Last Scan:</span>
+                    <span class="brm-health-status status-info">
+                        <?php echo $last_scan === 'never' ? 'Never' : date('M j, Y H:i', strtotime($last_scan)); ?>
+                    </span>
+                </div>
+                
+                <div class="brm-health-actions">
+                    <button type="button" class="button button-secondary" onclick="brmTestAPI()">
+                        Test API Connection
+                    </button>
+                    <button type="button" class="button button-secondary" onclick="brmRefreshStatus()">
+                        Refresh Status
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        function brmTestAPI() {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Testing...';
+            button.disabled = true;
+            
+            jQuery.post(brm_ajax.ajax_url, {
+                action: 'brm_test_api',
+                nonce: brm_ajax.nonce
+            }, function(response) {
+                button.textContent = originalText;
+                button.disabled = false;
+                
+                if (response.success) {
+                    if (response.data.success) {
+                        alert('API test successful! ' + response.data.message);
+                    } else {
+                        alert('API test failed: ' + response.data.message);
+                    }
+                } else {
+                    alert('Error testing API: ' + response.data);
+                }
+                
+                // Refresh the page to update status
+                location.reload();
+            });
+        }
+        
+        function brmRefreshStatus() {
+            location.reload();
+        }
+        </script>
+        <?php
     }
 }
