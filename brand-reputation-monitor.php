@@ -60,7 +60,9 @@ class BrandReputationMonitor {
         register_rest_route('brm/v1', '/health', array(
             'methods' => 'GET',
             'callback' => array($this, 'health_check'),
-            'permission_callback' => '__return_true'
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            }
         ));
         
         register_rest_route('brm/v1', '/status', array(

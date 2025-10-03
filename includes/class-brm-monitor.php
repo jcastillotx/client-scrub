@@ -74,10 +74,12 @@ class BRM_Monitor {
         }
         
         // Get AI search results
+        $settings = get_option('brm_settings', array());
+        $max_results = isset($settings['max_results_per_client']) ? intval($settings['max_results_per_client']) : 20;
         $search_results = $this->ai_service->search_mentions(
             $client->keywords,
             $client->name,
-            get_option('brm_settings')['max_results_per_client'] ?? 20
+            $max_results
         );
         
         if (isset($search_results['error'])) {

@@ -31,10 +31,11 @@ jQuery(document).ready(function($) {
                 // Show success message
                 showNotice('Client saved successfully!', 'success');
                 
-                // Reload the page to show updated data
+                // Hide the form and navigate to clients list to ensure updated view
+                $('#brm-form-section').hide();
                 setTimeout(function() {
-                    location.reload();
-                }, 1000);
+                    window.location.href = 'admin.php?page=brand-reputation-monitor';
+                }, 800);
             } else {
                 showNotice('Error: ' + response.data, 'error');
             }
@@ -87,9 +88,14 @@ jQuery(document).ready(function($) {
             }, function(response) {
                 if (response.success) {
                     showNotice('Client deleted successfully!', 'success');
+                    // Optimistically remove the row from the table
+                    if ($button && $button.length) {
+                        $button.closest('tr').fadeOut(200, function() { $(this).remove(); });
+                    }
+                    // Navigate to ensure counters and other UI reflect changes
                     setTimeout(function() {
-                        location.reload();
-                    }, 1000);
+                        window.location.href = 'admin.php?page=brand-reputation-monitor';
+                    }, 800);
                 } else {
                     showNotice('Error: ' + response.data, 'error');
                 }
@@ -243,11 +249,9 @@ function refreshStats() {
         nonce: brm_ajax.nonce
     }, function(response) {
         if (response.success) {
-            // Update stats display
-            $('.brm-stat-number').each(function(index) {
-                var $this = $(this);
-                var newValue = Object.values(response.data)[index];
-                if (newValue !== undefined) {
+            var s = response.data || {};
+            $('.brm-stat-number[data-key="total_clients"]').text(s.total_clients ?? 0);
+            $('.brm-stat-number[data-key="total_results"]').text(s.total_results ??  if (newValue !== undefined) {
                     $this.text(newValue);
                 }
             });

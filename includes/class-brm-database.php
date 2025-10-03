@@ -10,7 +10,8 @@ if (!defined('ABSPATH')) {
 class BRM_Database {
     
     public function __construct() {
-        add_action('brm_daily_monitoring', array($this, 'run_daily_monitoring'));
+        // Constructor intentionally left empty.
+        // Monitoring is scheduled and handled by BRM_Monitor.
     }
     
     public static function create_tables() {
@@ -202,10 +203,5 @@ class BRM_Database {
             ),
             array('%d', '%s', '%s', '%s')
         );
-    }
-    
-    public function run_daily_monitoring() {
-        $monitor = new BRM_Monitor();
-        $monitor->run_daily_scan();
     }
 }
