@@ -131,6 +131,20 @@ class BRM_Admin {
         </div>
         
         <script>
+        function showNotice(message, type) {
+            var noticeClass = type === 'success' ? 'notice-success' : 'notice-error';
+            var $notice = jQuery('<div class="notice ' + noticeClass + ' is-dismissible"><p>' + message + '</p></div>');
+            
+            jQuery('.wrap h1').after($notice);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(function() {
+                $notice.fadeOut(500, function() {
+                    jQuery(this).remove();
+                });
+            }, 5000);
+        }
+        
         function brmShowAddClientForm() {
             document.getElementById('brm-form-section').style.display = 'block';
             document.getElementById('brm-client-form-container').innerHTML = '<?php echo addslashes(BRM_Client_Manager::get_client_form_html()); ?>';
@@ -169,10 +183,15 @@ class BRM_Admin {
                     nonce: brm_ajax.nonce
                 }, function(response) {
                     if (response.success) {
-                        location.reload();
+                        showNotice('Client deleted successfully!', 'success');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
                     } else {
-                        alert('Error: ' + response.data);
+                        showNotice('Error: ' + response.data, 'error');
                     }
+                }).fail(function() {
+                    showNotice('Network error. Please try again.', 'error');
                 });
             }
         }
@@ -285,17 +304,28 @@ class BRM_Admin {
         <script>
         function brmManualScan(clientId) {
             if (confirm('Run manual scan for this client?')) {
+                var $button = jQuery('button[onclick*="brmManualScan"]');
+                var originalText = $button.text();
+                $button.prop('disabled', true).text('Scanning...');
+                
                 jQuery.post(brm_ajax.ajax_url, {
                     action: 'brm_manual_scan',
                     client_id: clientId,
                     nonce: brm_ajax.nonce
                 }, function(response) {
                     if (response.success) {
-                        alert('Scan completed! Found ' + response.data.new_results + ' new results.');
-                        location.reload();
+                        showNotice('Scan completed! Found ' + response.data.new_results + ' new results.', 'success');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
                     } else {
-                        alert('Error: ' + response.data);
+                        showNotice('Scan failed: ' + response.data, 'error');
                     }
+                }).fail(function(xhr, status, error) {
+                    showNotice('Network error during scan. Please try again.', 'error');
+                    console.error('AJAX Error:', xhr, status, error);
+                }).always(function() {
+                    $button.prop('disabled', false).text(originalText);
                 });
             }
         }

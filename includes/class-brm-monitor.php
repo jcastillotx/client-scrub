@@ -145,8 +145,23 @@ class BRM_Monitor {
             wp_send_json_error('Client not found');
         }
         
+        // Check if API is configured
+        $settings = get_option('brm_settings', array());
+        if (empty($settings['api_key'])) {
+            wp_send_json_error('AI API key not configured. Please configure your AI provider settings first.');
+        }
+        
         try {
+            BRM_Database::log_monitoring_action($client_id, 'manual_scan_started', "Manual scan initiated for {$client->name}", 'info');
+            
             $results = $this->scan_client($client);
+            
+            BRM_Database::log_monitoring_action(
+                $client_id, 
+                'manual_scan_completed', 
+                "Manual scan completed. Found " . count($results) . " new results",
+                'success'
+            );
             
             wp_send_json_success(array(
                 'message' => 'Scan completed successfully',
@@ -155,7 +170,14 @@ class BRM_Monitor {
             ));
             
         } catch (Exception $e) {
-            wp_send_json_error($e->getMessage());
+            BRM_Database::log_monitoring_action(
+                $client_id, 
+                'manual_scan_failed', 
+                "Manual scan failed: " . $e->getMessage(),
+                'error'
+            );
+            
+            wp_send_json_error('Scan failed: ' . $e->getMessage());
         }
     }
     

@@ -76,6 +76,10 @@ jQuery(document).ready(function($) {
     // Handle client deletion
     window.brmDeleteClient = function(clientId) {
         if (confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+            var $button = $('button[onclick*="brmDeleteClient(' + clientId + ')"]');
+            var originalText = $button.text();
+            $button.prop('disabled', true).text('Deleting...');
+            
             $.post(brm_ajax.ajax_url, {
                 action: 'brm_delete_client',
                 client_id: clientId,
@@ -89,8 +93,11 @@ jQuery(document).ready(function($) {
                 } else {
                     showNotice('Error: ' + response.data, 'error');
                 }
-            }).fail(function() {
+            }).fail(function(xhr, status, error) {
                 showNotice('Network error. Please try again.', 'error');
+                console.error('Delete Error:', xhr, status, error);
+            }).always(function() {
+                $button.prop('disabled', false).text(originalText);
             });
         }
     };
