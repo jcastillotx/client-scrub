@@ -90,7 +90,9 @@ class BRM_Monitor {
         $settings = get_option('brm_settings', array());
         $max_results = isset($settings['max_results_per_client']) ? (int) $settings['max_results_per_client'] : 20;
         if ($max_results < 1) {
-            $max_results = 20;
+            $max_results = 20; // sane minimum default
+        } elseif ($max_results > 100) {
+            $max_results = 100; // cap to prevent excessive API usage
         }
         $search_results = $this->ai_service->search_mentions(
             $client->keywords,
