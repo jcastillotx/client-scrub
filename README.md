@@ -31,9 +31,10 @@ The plugin supports two AI providers:
 - Uses GPT-4o-mini model for optimal cost/performance
 
 #### Perplexity AI
-- Alternative provider with web access capabilities
+- Alternative provider with powerful web search capabilities
 - Get API key from [Perplexity.ai](https://www.perplexity.ai/)
-- Uses Llama-3.1-sonar-small model
+- Uses Sonar models via the OpenAI-compatible Chat Completions API (e.g., `sonar`, `sonar-pro`, `sonar-deep-research`)
+- See official docs: https://docs.perplexity.ai/api-reference/chat-completions-post
 
 ### Settings Configuration
 

@@ -252,22 +252,40 @@ class BRM_AI_Service {
     
     /**
      * Make request to Perplexity API
+     *
+     * Perplexity Sonar models follow an OpenAI-compatible Chat Completions API.
+     * See: https://docs.perplexity.ai/api-reference/chat-completions-post
      */
     private function make_perplexity_request($prompt) {
         $api_key = $this->settings['api_key'];
-        
+
+        // Use a supported Sonar model per current docs. 'sonar-pro' provides advanced search.
+        $model = 'sonar-pro';
+
+        // Encourage concise, structured outputs and limit to recent content.
         $request_data = array(
-            'model' => 'llama-3.1-sonar-small-128k-online', // Cost-effective model with web access
+            'model' => $model,
             'messages' => array(
+                array(
+                    'role' => 'system',
+                    'content' => 'You are a precise, concise assistant. When asked to return structured data, output strict JSON only.'
+                ),
                 array(
                     'role' => 'user',
                     'content' => $prompt
                 )
             ),
-            'max_tokens' => 4000,
-            'temperature' => 0.3
+            // Keep responses bounded and deterministic for parsing
+            'max_tokens' => 1500,
+            'temperature' => 0.2,
+            // Prefer recent sources (roughly last month)
+            'search_recency_filter' => 'month',
+            // Optionally increase search context size for better citations
+            'web_search_options' => array(
+                'search_context_size' => 'high'
+            )
         );
-        
+
         $response = wp_remote_post('https://api.perplexity.ai/chat/completions', array(
             'headers' => array(
                 'Authorization' => 'Bearer ' . $api_key,
@@ -276,18 +294,25 @@ class BRM_AI_Service {
             'body' => json_encode($request_data),
             'timeout' => 60
         ));
-        
+
         if (is_wp_error($response)) {
             return $response;
         }
-        
+
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
-        
+
+        // Return model message content on success
         if (isset($data['choices'][0]['message']['content'])) {
             return $data['choices'][0]['message']['content'];
         }
-        
+
+        // Bubble up API error details if present
+        if (isset($data['error'])) {
+            $msg = is_array($data['error']) && isset($data['error']['message']) ? $data['error']['message'] : (string) $data['error'];
+            return new WP_Error('api_error', 'Perplexity API error: ' . $msg);
+        }
+
         return new WP_Error('api_error', 'Invalid response from Perplexity API');
     }
     
