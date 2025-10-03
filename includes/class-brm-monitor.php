@@ -261,13 +261,14 @@ class BRM_Monitor {
         // Total clients
         $stats['total_clients'] = $wpdb->get_var("SELECT COUNT(*) FROM $clients_table WHERE status = 'active'");
         
-        // Total results
-        $stats['total_results'] = $wpdb->get_var("SELECT COUNT(*) FROM $results_table");
+        // Total results (exclude deleted)
+        $stats['total_results'] = $wpdb->get_var("SELECT COUNT(*) FROM $results_table WHERE status != 'deleted'");
         
-        // Results by type
+        // Results by type (exclude deleted)
         $type_stats = $wpdb->get_results("
             SELECT type, COUNT(*) as count 
             FROM $results_table 
+            WHERE status != 'deleted'
             GROUP BY type
         ");
         $stats['by_type'] = array();
@@ -275,11 +276,12 @@ class BRM_Monitor {
             $stats['by_type'][$type_stat->type] = $type_stat->count;
         }
         
-        // Results by sentiment
+        // Results by sentiment (exclude deleted)
         $sentiment_stats = $wpdb->get_results("
             SELECT sentiment, COUNT(*) as count 
             FROM $results_table 
             WHERE sentiment IS NOT NULL 
+              AND status != 'deleted'
             GROUP BY sentiment
         ");
         $stats['by_sentiment'] = array();
@@ -287,10 +289,11 @@ class BRM_Monitor {
             $stats['by_sentiment'][$sentiment_stat->sentiment] = $sentiment_stat->count;
         }
         
-        // Recent results (last 7 days)
+        // Recent results (last 7 days, exclude deleted)
         $stats['recent_results'] = $wpdb->get_var("
             SELECT COUNT(*) FROM $results_table 
             WHERE found_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+              AND status != 'deleted'
         ");
         
         return $stats;
