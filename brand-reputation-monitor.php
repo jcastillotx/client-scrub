@@ -46,6 +46,13 @@ class BrandReputationMonitor {
         new BRM_AI_Service();
         new BRM_Admin();
         
+        // One-time schema migration/backfill for canonical_url and deduplication
+        if (!get_option('brm_canonical_migrated')) {
+            BRM_Database::create_tables();
+            BRM_Database::backfill_canonical_urls();
+            update_option('brm_canonical_migrated', 1);
+        }
+
         // Add REST API endpoints
         add_action('rest_api_init', array($this, 'register_rest_routes'));
         
@@ -60,7 +67,9 @@ class BrandReputationMonitor {
         register_rest_route('brm/v1', '/health', array(
             'methods' => 'GET',
             'callback' => array($this, 'health_check'),
-            'permission_callback' => '__return_true'
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            }
         ));
         
         register_rest_route('brm/v1', '/status', array(

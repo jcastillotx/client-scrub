@@ -20,6 +20,19 @@ class BRM_Monitor {
     /**
      * Run daily monitoring scan for all active clients
      */
+    private function canonicalize_url($url) {
+        $parts = parse_url($url);
+        if (!$parts || empty($parts['host'])) {
+            return '';
+        }
+        $host = strtolower($parts['host']);
+        $path = isset($parts['path']) ? rtrim($parts['path'], '/') : '';
+        if ($path === '') {
+            $path = '/';
+        }
+        return $host . $path;
+    }
+
     public function run_daily_scan() {
         $clients = BRM_Database::get_all_clients();
         $total_results = 0;
@@ -74,10 +87,12 @@ class BRM_Monitor {
         }
         
         // Get AI search results
+        $settings = get_option('brm_settings', array());
+        $max_results = isset($settings['max_results_per_client']) ? intval($settings['max_results_per_client']) : 20;
         $search_results = $this->ai_service->search_mentions(
             $client->keywords,
             $client->name,
-            get_option('brm_settings')['max_results_per_client'] ?? 20
+            $max_results
         );
         
         if (isset($search_results['error'])) {
@@ -88,13 +103,15 @@ class BRM_Monitor {
         
         if (isset($search_results['results']) && is_array($search_results['results'])) {
             foreach ($search_results['results'] as $result) {
-                // Check if this result already exists
+                $canonical = $this->canonicalize_url($result['url']);
+                // Check if this result already exists (by canonical_url or exact url)
                 if (!$this->result_exists($client->id, $result['url'])) {
                     // Save the result
                     $saved = BRM_Database::save_monitoring_result(array(
                         'client_id' => $client->id,
                         'title' => $result['title'] ?? 'Untitled',
                         'url' => $result['url'],
+                        'canonical_url' => $canonical,
                         'content' => $result['content'] ?? '',
                         'source' => $result['source'] ?? parse_url($result['url'], PHP_URL_HOST),
                         'type' => $result['type'] ?? 'article',
@@ -118,14 +135,17 @@ class BRM_Monitor {
     private function result_exists($client_id, $url) {
         global $wpdb;
         $table = $wpdb->prefix . 'brm_monitoring_results';
+
+        $canonical = $this->canonicalize_url($url);
         
         $exists = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $table WHERE client_id = %d AND url = %s",
+            "SELECT COUNT(*) FROM $table WHERE client_id = %d AND (canonical_url = %s OR url = %s)",
             $client_id,
+            $canonical,
             $url
         ));
         
-        return $exists > 0;
+        return intval($exists) > 0;
     }
     
     /**

@@ -10,7 +10,8 @@ if (!defined('ABSPATH')) {
 class BRM_Database {
     
     public function __construct() {
-        add_action('brm_daily_monitoring', array($this, 'run_daily_monitoring'));
+        // Constructor intentionally left empty.
+        // Monitoring is scheduled and handled by BRM_Monitor.
     }
     
     public static function create_tables() {
@@ -41,6 +42,7 @@ class BRM_Database {
             client_id mediumint(9) NOT NULL,
             title varchar(500) NOT NULL,
             url varchar(1000) NOT NULL,
+            canonical_url varchar(1000),
             content text,
             source varchar(255),
             type varchar(50) NOT NULL,
@@ -52,7 +54,8 @@ class BRM_Database {
             PRIMARY KEY (id),
             KEY client_id (client_id),
             KEY type (type),
-            KEY found_at (found_at)
+            KEY found_at (found_at),
+            KEY canonical_url (canonical_url)
         ) $charset_collate;";
         
         // Monitoring logs table
@@ -73,6 +76,9 @@ class BRM_Database {
         dbDelta($clients_sql);
         dbDelta($results_sql);
         dbDelta($logs_sql);
+
+        // Backfill canonical_url for existing records
+        self::backfill_canonical_urls();
     }
     
     public static function get_client($id) {
@@ -150,13 +156,14 @@ class BRM_Database {
                 'client_id' => intval($data['client_id']),
                 'title' => sanitize_text_field($data['title']),
                 'url' => esc_url_raw($data['url']),
+                'canonical_url' => isset($data['canonical_url']) ? sanitize_text_field($data['canonical_url']) : null,
                 'content' => sanitize_textarea_field($data['content']),
                 'source' => sanitize_text_field($data['source']),
                 'type' => sanitize_text_field($data['type']),
                 'sentiment' => sanitize_text_field($data['sentiment']),
                 'relevance_score' => floatval($data['relevance_score'])
             ),
-            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%f')
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f')
         );
     }
     
@@ -203,9 +210,44 @@ class BRM_Database {
             array('%d', '%s', '%s', '%s')
         );
     }
-    
-    public function run_daily_monitoring() {
-        $monitor = new BRM_Monitor();
-        $monitor->run_daily_scan();
+
+    private static function canonicalize_url($url) {
+        $parts = parse_url($url);
+        if (!$parts || empty($parts['host'])) {
+            return '';
+        }
+        $host = strtolower($parts['host']);
+        $path = isset($parts['path']) ? rtrim($parts['path'], '/') : '';
+        if ($path === '') {
+            $path = '/';
+        }
+        return $host . $path;
+    }
+
+    public static function backfill_canonical_urls() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'brm_monitoring_results';
+        // Ensure column exists
+        $columns = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'canonical_url'");
+        if (empty($columns)) {
+            return;
+        }
+        // Backfill a reasonable batch size
+        $rows = $wpdb->get_results("SELECT id, url FROM $table WHERE canonical_url IS NULL OR canonical_url = '' LIMIT 10000");
+        if (empty($rows)) {
+            return;
+        }
+        foreach ($rows as $row) {
+            $canonical = self::canonicalize_url($row->url);
+            if (!empty($canonical)) {
+                $wpdb->update(
+                    $table,
+                    array('canonical_url' => $canonical),
+                    array('id' => $row->id),
+                    array('%s'),
+                    array('%d')
+                );
+            }
+        }
     }
 }

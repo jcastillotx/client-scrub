@@ -131,75 +131,7 @@ class BRM_Admin {
         </div>
         
         <script>
-        function showNotice(message, type) {
-            var noticeClass = type === 'success' ? 'notice-success' : 'notice-error';
-            var $notice = jQuery('<div class="notice ' + noticeClass + ' is-dismissible"><p>' + message + '</p></div>');
-            
-            jQuery('.wrap h1').after($notice);
-            
-            // Auto-dismiss after 5 seconds
-            setTimeout(function() {
-                $notice.fadeOut(500, function() {
-                    jQuery(this).remove();
-                });
-            }, 5000);
-        }
-        
-        function brmShowAddClientForm() {
-            document.getElementById('brm-form-section').style.display = 'block';
-            document.getElementById('brm-client-form-container').innerHTML = '<?php echo addslashes(BRM_Client_Manager::get_client_form_html()); ?>';
-        }
-        
-        function brmEditClient(clientId) {
-            // AJAX call to get client data and show form
-            jQuery.post(brm_ajax.ajax_url, {
-                action: 'brm_get_client',
-                client_id: clientId,
-                nonce: brm_ajax.nonce
-            }, function(response) {
-                if (response.success) {
-                    document.getElementById('brm-form-section').style.display = 'block';
-                    document.getElementById('brm-client-form-container').innerHTML = '<?php echo addslashes(BRM_Client_Manager::get_client_form_html()); ?>';
-                    // Populate form with client data
-                    jQuery('#client_name').val(response.data.name);
-                    jQuery('#client_address').val(response.data.address);
-                    jQuery('#client_website').val(response.data.website);
-                    jQuery('#client_phone').val(response.data.phone);
-                    jQuery('#client_email').val(response.data.email);
-                    jQuery('#client_keywords').val(response.data.keywords);
-                }
-            });
-        }
-        
-        function brmCancelEdit() {
-            document.getElementById('brm-form-section').style.display = 'none';
-        }
-        
-        function brmDeleteClient(clientId) {
-            if (confirm('Are you sure you want to delete this client?')) {
-                jQuery.post(brm_ajax.ajax_url, {
-                    action: 'brm_delete_client',
-                    client_id: clientId,
-                    nonce: brm_ajax.nonce
-                }, function(response) {
-                    if (response.success) {
-                        showNotice('Client deleted successfully!', 'success');
-                        setTimeout(function() {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        showNotice('Error: ' + response.data, 'error');
-                    }
-                }).fail(function() {
-                    showNotice('Network error. Please try again.', 'error');
-                });
-            }
-        }
-        
-        function brmViewResults(clientId) {
-            window.location.href = '<?php echo admin_url('admin.php?page=brm-results'); ?>&client_id=' + clientId;
-        }
-        
+        // Keep only web scraping handler here; other admin functions are provided in assets/admin.js
         function brmStartWebScraping() {
             if (confirm('Start web scraping for all clients? This may take several minutes.')) {
                 var $btn = document.getElementById('start-scraping-btn');
@@ -210,46 +142,53 @@ class BRM_Admin {
                 $btn.disabled = true;
                 $btnText.style.display = 'none';
                 $btnLoading.style.display = 'inline';
+
+                // Show persistent progress notice and periodically refresh stats
+                var progressNotice = typeof showNoticePersistent === 'function'
+                    ? showNoticePersistent('Starting web scraping... Progress will update automatically.', 'info')
+                    : null;
+                var refreshInterval = setInterval(function() {
+                    if (typeof refreshStats === 'function') {
+                        refreshStats();
+                    }
+                }, 5000);
                 
                 jQuery.post(brm_ajax.ajax_url, {
                     action: 'brm_start_web_scraping',
                     nonce: brm_ajax.nonce
                 }, function(response) {
+                    // Clear progress UI
+                    if (refreshInterval) { clearInterval(refreshInterval); }
+                    if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
+
                     if (response.success) {
                         // Update workflow step
                         document.getElementById('step-2').classList.add('completed');
                         document.getElementById('step-3').classList.add('completed');
                         
-                        // Show success message with results
-                        var message = 'Web scraping completed!\\n\\n';
-                        message += 'Total results found: ' + response.data.total_results + '\\n';
-                        message += 'Clients scanned: ' + response.data.clients_count + '\\n\\n';
-                        
-                        if (response.data.scanned_clients.length > 0) {
-                            message += 'Results by client:\\n';
-                            response.data.scanned_clients.forEach(function(client) {
-                                message += '• ' + client.name + ': ' + client.new_results + ' new results\\n';
-                            });
+                        // Show success toast notice
+                        var summary = 'Web scraping completed successfully. Total results: ' +
+                                      response.data.total_results + '. Clients scanned: ' +
+                                      response.data.clients_count + '.';
+                        if (typeof showNotice === 'function') {
+                            showNotice(summary, 'success');
                         }
-                        
-                        if (response.data.errors.length > 0) {
-                            message += '\\nErrors:\\n';
-                            response.data.errors.forEach(function(error) {
-                                message += '• ' + error + '\\n';
-                            });
-                        }
-                        
-                        alert(message);
-                        
+
                         // Reload page to show updated data
                         setTimeout(function() {
                             location.reload();
-                        }, 2000);
+                        }, 1500);
                     } else {
-                        alert('Error: ' + response.data);
+                        if (typeof showNotice === 'function') {
+                            showNotice('Error: ' + response.data, 'error');
+                        }
                     }
                 }).fail(function() {
-                    alert('Network error. Please try again.');
+                    if (refreshInterval) { clearInterval(refreshInterval); }
+                    if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
+                    if (typeof showNotice === 'function') {
+                        showNotice('Network error. Please try again.', 'error');
+                    }
                 }).always(function() {
                     // Reset button state
                     $btn.disabled = false;
@@ -273,7 +212,7 @@ class BRM_Admin {
             <?php if ($client_id): ?>
                 <?php $client = BRM_Database::get_client($client_id); ?>
                 <h2>Results for: <?php echo esc_html($client->name); ?></h2>
-                <button class="button button-primary" onclick="brmManualScan(<?php echo $client_id; ?>)">Run Manual Scan</button>
+                <button class="button button-primary" id="brm-manual-scan-btn" onclick="brmManualScan(<?php echo $client_id; ?>)">Run Manual Scan</button>
             <?php endif; ?>
             
             <div class="brm-filters">
@@ -301,35 +240,7 @@ class BRM_Admin {
             </div>
         </div>
         
-        <script>
-        function brmManualScan(clientId) {
-            if (confirm('Run manual scan for this client?')) {
-                var $button = jQuery('button[onclick*="brmManualScan"]');
-                var originalText = $button.text();
-                $button.prop('disabled', true).text('Scanning...');
-                
-                jQuery.post(brm_ajax.ajax_url, {
-                    action: 'brm_manual_scan',
-                    client_id: clientId,
-                    nonce: brm_ajax.nonce
-                }, function(response) {
-                    if (response.success) {
-                        showNotice('Scan completed! Found ' + response.data.new_results + ' new results.', 'success');
-                        setTimeout(function() {
-                            location.reload();
-                        }, 2000);
-                    } else {
-                        showNotice('Scan failed: ' + response.data, 'error');
-                    }
-                }).fail(function(xhr, status, error) {
-                    showNotice('Network error during scan. Please try again.', 'error');
-                    console.error('AJAX Error:', xhr, status, error);
-                }).always(function() {
-                    $button.prop('disabled', false).text(originalText);
-                });
-            }
-        }
-        </script>
+        
         <?php
     }
     
@@ -344,7 +255,15 @@ class BRM_Admin {
             );
             
             update_option('brm_settings', $settings);
-            echo '<div class="notice notice-success"><p>Settings saved successfully!</p></div>';
+
+            // Reschedule cron based on monitoring frequency
+            $schedule = in_array($settings['monitoring_frequency'], array('hourly','twicedaily','daily')) ? $settings['monitoring_frequency'] : 'daily';
+            wp_clear_scheduled_hook('brm_daily_monitoring');
+            if (!wp_next_scheduled('brm_daily_monitoring')) {
+                wp_schedule_event(time(), $schedule, 'brm_daily_monitoring');
+            }
+
+            echo '<div class="notice notice-success"><p>Settings saved successfully! Monitoring schedule updated.</p></div>';
         }
         
         $settings = get_option('brm_settings', array());
@@ -382,7 +301,7 @@ class BRM_Admin {
                         <td>
                             <select name="monitoring_frequency">
                                 <option value="daily" <?php selected($settings['monitoring_frequency'] ?? 'daily', 'daily'); ?>>Daily</option>
-                                <option value="twice_daily" <?php selected($settings['monitoring_frequency'] ?? '', 'twice_daily'); ?>>Twice Daily</option>
+                                <option value="twicedaily" <?php selected($settings['monitoring_frequency'] ?? '', 'twicedaily'); ?>>Twice Daily</option>
                                 <option value="hourly" <?php selected($settings['monitoring_frequency'] ?? '', 'hourly'); ?>>Hourly</option>
                             </select>
                         </td>
@@ -433,17 +352,17 @@ class BRM_Admin {
         ?>
         <div class="brm-stat-card">
             <h3>Total Clients</h3>
-            <div class="brm-stat-number"><?php echo $stats['total_clients']; ?></div>
+            <div class="brm-stat-number" data-key="total_clients"><?php echo $stats['total_clients']; ?></div>
         </div>
         
         <div class="brm-stat-card">
             <h3>Total Results</h3>
-            <div class="brm-stat-number"><?php echo $stats['total_results']; ?></div>
+            <div class="brm-stat-number" data-key="total_results"><?php echo $stats['total_results']; ?></div>
         </div>
         
         <div class="brm-stat-card">
             <h3>Recent Results (7 days)</h3>
-            <div class="brm-stat-number"><?php echo $stats['recent_results']; ?></div>
+            <div class="brm-stat-number" data-key="recent_results"><?php echo $stats['recent_results']; ?></div>
         </div>
         
         <div class="brm-stat-card">
@@ -668,26 +587,44 @@ class BRM_Admin {
             const originalText = button.textContent;
             button.textContent = 'Testing...';
             button.disabled = true;
+
+            var progressNotice = typeof showNoticePersistent === 'function'
+                ? showNoticePersistent('Testing API connection...', 'info')
+                : null;
             
             jQuery.post(brm_ajax.ajax_url, {
                 action: 'brm_test_api',
                 nonce: brm_ajax.nonce
             }, function(response) {
+                if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
                 button.textContent = originalText;
                 button.disabled = false;
                 
                 if (response.success) {
                     if (response.data.success) {
-                        alert('API test successful! ' + response.data.message);
+                        if (typeof showNotice === 'function') {
+                            showNotice('API test successful! ' + response.data.message, 'success');
+                        }
                     } else {
-                        alert('API test failed: ' + response.data.message);
+                        if (typeof showNotice === 'function') {
+                            showNotice('API test failed: ' + response.data.message, 'error');
+                        }
                     }
                 } else {
-                    alert('Error testing API: ' + response.data);
+                    if (typeof showNotice === 'function') {
+                        showNotice('Error testing API: ' + response.data, 'error');
+                    }
                 }
                 
                 // Refresh the page to update status
-                location.reload();
+                setTimeout(function() { location.reload(); }, 1200);
+            }).fail(function() {
+                if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
+                button.textContent = originalText;
+                button.disabled = false;
+                if (typeof showNotice === 'function') {
+                    showNotice('Network error while testing API.', 'error');
+                }
             });
         }
         
