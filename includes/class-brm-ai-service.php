@@ -16,6 +16,71 @@ class BRM_AI_Service {
     }
     
     /**
+     * Normalize URL (ensure scheme and trim)
+     */
+    public function normalize_url($url) {
+        $url = trim($url ?? '');
+        if (empty($url)) {
+            return '';
+        }
+        $parts = parse_url($url);
+        if (!$parts || empty($parts['host'])) {
+            // If it's missing scheme but looks like a domain
+            if (preg_match('/^[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$/', $url)) {
+                $url = 'https://' . $url;
+            } else {
+                return '';
+            }
+        } elseif (empty($parts['scheme'])) {
+            $url = 'https://' . ltrim($url, '/');
+        }
+        return $url;
+    }
+
+    /**
+     * Validate URL by basic checks and HTTP response
+     */
+    public function validate_url($url) {
+        $parts = parse_url($url);
+        if (!$parts || empty($parts['host'])) {
+            return false;
+        }
+        $scheme = strtolower($parts['scheme'] ?? '');
+        if (!in_array($scheme, array('http', 'https'))) {
+            return false;
+        }
+        $host = strtolower($parts['host']);
+
+        // Reject local/suspicious hosts
+        $suspicious = array('localhost', 'example.com', 'test.com', 'domain.com', 'yourdomain.com', 'loremipsum.com');
+        foreach ($suspicious as $bad) {
+            if ($host === $bad || strpos($host, $bad) !== false) {
+                return false;
+            }
+        }
+
+        // Reject private IPs
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $ip = $host;
+            if (preg_match('/^(10\\.|127\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.)/', $ip)) {
+                return false;
+            }
+        }
+
+        // Attempt HEAD request first
+        $resp = wp_remote_head($url, array('timeout' => 10, 'redirection' => 5));
+        if (is_wp_error($resp)) {
+            // Fallback to GET for servers that disallow HEAD
+            $resp = wp_remote_get($url, array('timeout' => 10, 'redirection' => 5));
+            if (is_wp_error($resp)) {
+                return false;
+            }
+        }
+        $code = wp_remote_retrieve_response_code($resp);
+        return is_numeric($code) && $code >= 200 && $code < 400;
+    }
+    
+    /**
      * Search for mentions using AI service
      */
     public function search_mentions($keywords, $client_name, $max_results = 20) {
@@ -91,7 +156,11 @@ class BRM_AI_Service {
             return array('error' => $response->get_error_message());
         }
         
-        return $this->parse_ai_response($response);
+        $parsed = $this->parse_ai_response($response);
+        $clean = isset($parsed['results']) && is_array($parsed['results'])
+            ? $this->filter_and_normalize_results($parsed['results'], $max_results)
+            : array();
+        return array('results' => $clean);
     }
     
     /**
@@ -131,7 +200,11 @@ class BRM_AI_Service {
             return array('error' => $response->get_error_message());
         }
         
-        return $this->parse_ai_response($response);
+        $parsed = $this->parse_ai_response($response);
+        $clean = isset($parsed['results']) && is_array($parsed['results'])
+            ? $this->filter_and_normalize_results($parsed['results'], $max_results)
+            : array();
+        return array('results' => $clean);
     }
     
     /**
@@ -268,29 +341,47 @@ class BRM_AI_Service {
      * Manually extract results from AI response
      */
     private function extract_results_manually($response) {
-        $results = array();
-        
         // Look for URLs in the response
-        preg_match_all('/https?:\/\/[^\s<>"]+/', $response, $urls);
-        
-        foreach ($urls[0] as $index => $url) {
+        preg_match_all('/https?:\\/\\/[^\\s<>\"]+/', $response, $urls);
+        $results = array();
+        foreach ($urls[0] as $url) {
             $results[] = array(
                 'title' => 'Mention found',
                 'url' => $url,
-                'content' => 'AI-detected mention',
+                'content' => '',
                 'source' => parse_url($url, PHP_URL_HOST),
                 'type' => 'article',
                 'sentiment' => 'neutral',
                 'relevance_score' => 0.5
             );
         }
-        
-        // If no URLs found, return empty results instead of dummy data
-        if (empty($results)) {
-            return array('results' => array());
-        }
-        
         return array('results' => $results);
+    }
+
+    /**
+     * Filter and normalize results, enforce max_results and URL validation
+     */
+    private function filter_and_normalize_results($results, $max_results) {
+        $clean = array();
+        foreach ($results as $r) {
+            $url = $this->normalize_url($r['url'] ?? '');
+            if (empty($url) || !$this->validate_url($url)) {
+                continue;
+            }
+            $clean[] = array(
+                'title' => $r['title'] ?? 'Untitled',
+                'url' => $url,
+                'content' => $r['content'] ?? '',
+                'source' => parse_url($url, PHP_URL_HOST) ?: ($r['source'] ?? ''),
+                'type' => $r['type'] ?? 'article',
+                'sentiment' => $r['sentiment'] ?? 'neutral',
+                'relevance_score' => $r['relevance_score'] ?? 0.5
+            );
+            if (count($clean) >= $max_results) {
+                break;
+            }
+        }
+        return $clean;
     }
     
     /**

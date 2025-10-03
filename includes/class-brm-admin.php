@@ -15,6 +15,8 @@ class BRM_Admin {
         add_action('wp_ajax_brm_get_stats', array($this, 'ajax_get_stats'));
         add_action('wp_ajax_brm_test_api', array($this, 'ajax_test_api'));
         add_action('wp_ajax_brm_start_web_scraping', array($this, 'ajax_start_web_scraping'));
+        add_action('wp_ajax_brm_delete_result', array($this, 'ajax_delete_result'));
+        add_action('wp_ajax_brm_validate_results', array($this, 'ajax_validate_results'));
     }
     
     public function add_admin_menu() {
@@ -204,6 +206,7 @@ class BRM_Admin {
     public function results_page() {
         $client_id = isset($_GET['client_id']) ? intval($_GET['client_id']) : null;
         $type_filter = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : null;
+        $clients = BRM_Database::get_all_clients();
         
         ?>
         <div class="wrap">
@@ -218,9 +221,15 @@ class BRM_Admin {
             <div class="brm-filters">
                 <form method="get">
                     <input type="hidden" name="page" value="brm-results">
-                    <?php if ($client_id): ?>
-                        <input type="hidden" name="client_id" value="<?php echo $client_id; ?>">
-                    <?php endif; ?>
+                    
+                    <select name="client_id">
+                        <option value="">All Clients</option>
+                        <?php foreach ($clients as $client): ?>
+                            <option value="<?php echo $client->id; ?>" <?php selected($client_id, $client->id); ?>>
+                                <?php echo esc_html($client->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                     
                     <select name="type">
                         <option value="">All Types</option>
@@ -235,6 +244,13 @@ class BRM_Admin {
                 </form>
             </div>
             
+            <div class="brm-validation-actions" style="margin: 10px 0 20px;">
+                <button class="button button-secondary" onclick="brmValidateResults(<?php echo $client_id ? $client_id : 0; ?>)">
+                    Validate Results<?php echo $client_id ? ' (This Client)' : ''; ?>
+                </button>
+                <small class="description">Checks saved URLs and deletes invalid or fake ones.</small>
+            </div>
+
             <div class="brm-results-list">
                 <?php $this->display_results($client_id, $type_filter); ?>
             </div>
@@ -400,7 +416,7 @@ class BRM_Admin {
             </thead>
             <tbody>
                 <?php foreach ($results as $result): ?>
-                    <tr>
+                    <tr data-result-id="<?php echo intval($result->id); ?>">
                         <td>
                             <strong><?php echo esc_html($result->title); ?></strong>
                             <?php if ($result->content): ?>
@@ -421,7 +437,8 @@ class BRM_Admin {
                         <td><?php echo number_format($result->relevance_score * 100, 1); ?>%</td>
                         <td><?php echo date('M j, Y', strtotime($result->found_at)); ?></td>
                         <td>
-                            <a href="<?php echo esc_url($result->url); ?>" target="_blank" class="button button-small">View</a>
+                            <a href="<?php echo esc_url($result->url); ?>" target="_blank" rel="noopener" class="button button-small">View</a>
+                            <button class="button button-small button-link-delete" onclick="brmDeleteResult(<?php echo intval($result->id); ?>)">Delete</button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -521,6 +538,88 @@ class BRM_Admin {
             'scanned_clients' => $scanned_clients,
             'errors' => $errors,
             'clients_count' => count($clients)
+        ));
+    }
+
+    public function ajax_delete_result() {
+        check_ajax_referer('brm_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $result_id = intval($_POST['result_id'] ?? 0);
+        if (!$result_id) {
+            wp_send_json_error('Invalid result ID');
+        }
+
+        $res = BRM_Database::delete_monitoring_result($result_id);
+        if ($res !== false) {
+            wp_send_json_success('Result deleted successfully');
+        } else {
+            wp_send_json_error('Failed to delete result');
+        }
+    }
+
+    public function ajax_validate_results() {
+        check_ajax_referer('brm_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $client_id = isset($_POST['client_id']) ? intval($_POST['client_id']) : 0;
+        global $wpdb;
+        $table = $wpdb->prefix . 'brm_monitoring_results';
+
+        $where = "status != 'deleted'";
+        $params = array();
+        if ($client_id > 0) {
+            $where .= " AND client_id = %d";
+            $params[] = $client_id;
+        }
+
+        BRM_Database::log_monitoring_action(
+            $client_id > 0 ? $client_id : null,
+            'validation_started',
+            $client_id > 0 ? 'Validation started for client ' . $client_id : 'Validation started for all clients',
+            'info'
+        );
+
+        $sql = "SELECT id, url FROM $table WHERE $where";
+        $rows = !empty($params) ? $wpdb->get_results($wpdb->prepare($sql, $params)) : $wpdb->get_results($sql);
+
+        $ai = new BRM_AI_Service();
+        $checked = 0;
+        $deleted = 0;
+        $valid = 0;
+
+        foreach ($rows as $row) {
+            $checked++;
+            $url = $ai->normalize_url($row->url);
+            if (!empty($url) && $ai->validate_url($url)) {
+                $valid++;
+                continue;
+            }
+            $res = BRM_Database::delete_monitoring_result($row->id);
+            if ($res !== false) {
+                $deleted++;
+            }
+        }
+
+        BRM_Database::log_monitoring_action(
+            $client_id > 0 ? $client_id : null,
+            'validation_completed',
+            "Validation completed. Checked: $checked, Deleted: $deleted, Valid: $valid",
+            'success'
+        );
+
+        wp_send_json_success(array(
+            'message' => 'Validation completed',
+            'checked' => $checked,
+            'deleted' => $deleted,
+            'valid' => $valid,
+            'client_id' => $client_id
         ));
     }
     

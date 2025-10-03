@@ -108,24 +108,39 @@ class BRM_Monitor {
         
         if (isset($search_results['results']) && is_array($search_results['results'])) {
             foreach ($search_results['results'] as $result) {
-                $canonical = $this->canonicalize_url($result['url']);
+                $raw_url = $result['url'] ?? '';
+                $url = $this->ai_service->normalize_url($raw_url);
+                if (empty($url) || !$this->ai_service->validate_url($url)) {
+                    continue; // skip invalid or non-resolving URLs
+                }
+
+                $canonical = $this->canonicalize_url($url);
                 // Check if this result already exists (by canonical_url or exact url)
-                if (!$this->result_exists($client->id, $result['url'])) {
+                if (!$this->result_exists($client->id, $url)) {
                     // Save the result
                     $saved = BRM_Database::save_monitoring_result(array(
                         'client_id' => $client->id,
                         'title' => $result['title'] ?? 'Untitled',
-                        'url' => $result['url'],
+                        'url' => $url,
                         'canonical_url' => $canonical,
                         'content' => $result['content'] ?? '',
-                        'source' => $result['source'] ?? parse_url($result['url'], PHP_URL_HOST),
+                        'source' => parse_url($url, PHP_URL_HOST) ?: ($result['source'] ?? ''),
                         'type' => $result['type'] ?? 'article',
                         'sentiment' => $result['sentiment'] ?? 'neutral',
                         'relevance_score' => $result['relevance_score'] ?? 0.5
                     ));
                     
                     if ($saved) {
-                        $new_results[] = $result;
+                        // Return normalized result structure
+                        $new_results[] = array(
+                            'title' => $result['title'] ?? 'Untitled',
+                            'url' => $url,
+                            'content' => $result['content'] ?? '',
+                            'source' => parse_url($url, PHP_URL_HOST) ?: ($result['source'] ?? ''),
+                            'type' => $result['type'] ?? 'article',
+                            'sentiment' => $result['sentiment'] ?? 'neutral',
+                            'relevance_score' => $result['relevance_score'] ?? 0.5
+                        );
                     }
                 }
             }

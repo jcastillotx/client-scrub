@@ -3,7 +3,7 @@
  * Plugin Name: Brand Reputation Monitor
  * Plugin URI: https://www.kre8ivtech.com
  * Description: Monitor client brand reputation by tracking mentions, articles, news, and backlinks across the web using AI-powered analysis.
- * Version: 1.2
+ * Version: 1.3
  * Author: Kre8ivTech
  * Author URI: https://www.kre8ivtech.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('BRM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('BRM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('BRM_VERSION', '1.2');
+define('BRM_VERSION', '1.3');
 
 // Include required files
 require_once BRM_PLUGIN_PATH . 'includes/class-brm-database.php';

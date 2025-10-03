@@ -172,6 +172,78 @@ jQuery(document).ready(function($) {
         window.location.href = 'admin.php?page=brm-results&client_id=' + clientId;
     };
 
+    // Delete a monitoring result
+    window.brmDeleteResult = function(resultId) {
+        if (!confirm('Delete this result?')) {
+            return;
+        }
+        var $button = jQuery('button[onclick*="brmDeleteResult(' + resultId + ')"]');
+        var originalText = $button.text();
+        $button.prop('disabled', true).text('Deleting...');
+
+        jQuery.post(brm_ajax.ajax_url, {
+            action: 'brm_delete_result',
+            result_id: resultId,
+            nonce: brm_ajax.nonce
+        }, function(response) {
+            if (response.success) {
+                showNotice('Result deleted successfully!', 'success');
+                // Remove the row from the table
+                var $row = jQuery('tr[data-result-id="' + resultId + '"]');
+                if ($row.length) {
+                    $row.fadeOut(200, function() { jQuery(this).remove(); });
+                }
+            } else {
+                showNotice('Error: ' + response.data, 'error');
+            }
+        }).fail(function(xhr, status, error) {
+            showNotice('Network error. Please try again.', 'error');
+            console.error('Delete Result Error:', xhr, status, error);
+        }).always(function() {
+            $button.prop('disabled', false).text(originalText);
+        });
+    };
+
+    // Validate saved monitoring results (optional by client)
+    window.brmValidateResults = function(clientId) {
+        var confirmText = clientId && clientId > 0
+            ? 'Validate results for this client? Invalid/fake links will be deleted.'
+            : 'Validate all results across clients? Invalid/fake links will be deleted.';
+        if (!confirm(confirmText)) {
+            return;
+        }
+
+        var $button = jQuery('button[onclick*="brmValidateResults"]');
+        var originalText = $button.text();
+        $button.prop('disabled', true).text('Validating...');
+
+        var progressNotice = showNoticePersistent('Validation in progress...', 'info');
+
+        jQuery.post(brm_ajax.ajax_url, {
+            action: 'brm_validate_results',
+            client_id: clientId || 0,
+            nonce: brm_ajax.nonce
+        }, function(response) {
+            if (progressNotice) { progressNotice.remove(); }
+
+            if (response.success) {
+                var d = response.data || {};
+                showNotice('Validation completed. Checked: ' + (d.checked || 0) + ', Deleted: ' + (d.deleted || 0) + ', Valid: ' + (d.valid || 0), 'success');
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotice('Error: ' + response.data, 'error');
+            }
+        }).fail(function(xhr, status, error) {
+            if (progressNotice) { progressNotice.remove(); }
+            showNotice('Network error. Please try again.', 'error');
+            console.error('Validate Results Error:', xhr, status, error);
+        }).always(function() {
+            $button.prop('disabled', false).text(originalText);
+        });
+    };
+
     // Auto-refresh stats every 30 seconds
     if (typeof brm_ajax !== 'undefined' && $('.brm-stats-grid').length > 0) {
         setInterval(function() {
