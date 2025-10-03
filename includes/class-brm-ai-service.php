@@ -502,34 +502,61 @@ class BRM_AI_Service {
     
     /**
      * Get cost estimate for API usage
+     *
+     * Notes:
+     * - These are ballpark estimates for budgeting. Actual billing depends on provider pricing and tokens used.
+     * - Perplexity Sonar models have different cost profiles. Deep Research typically consumes more tokens.
      */
     public function get_cost_estimate($num_requests, $provider = null) {
-        $provider = $provider ?: ($this->settings['ai_provider'] ?? 'openrouter');
-        
-        // Rough cost estimates (as of 2024)
+        $settings = get_option('brm_settings', array());
+        $provider = $provider ?: ($settings['ai_provider'] ?? 'openrouter');
+
+        // Select model based on provider/settings
+        if ($provider === 'perplexity') {
+            $model = sanitize_text_field($settings['perplexity_model'] ?? 'sonar-pro');
+        } else {
+            // Default OpenRouter model used elsewhere in the plugin
+            $model = 'gpt-4o-mini';
+        }
+
+        // Rough per-1K token estimates (USD). Adjust as needed for your account/plan.
         $costs = array(
             'openrouter' => array(
-                'gpt-4o-mini' => 0.00015, // per 1K tokens
-                'gpt-3.5-turbo' => 0.0005
+                'gpt-4o-mini' => 0.00015,  // per 1K tokens
+                'gpt-3.5-turbo' => 0.00050 // fallback
             ),
             'perplexity' => array(
-                'llama-3.1-sonar-small' => 0.0002, // per 1K tokens
-                'llama-3.1-sonar-large' => 0.001
+                'sonar' => 0.00020,                 // lightweight search
+                'sonar-pro' => 0.00035,             // advanced search
+                'sonar-deep-research' => 0.00150,   // exhaustive research
+                'sonar-reasoning' => 0.00030,       // fast reasoning
+                'sonar-reasoning-pro' => 0.00075    // premier reasoning
             )
         );
-        
-        $model = $provider === 'openrouter' ? 'gpt-4o-mini' : 'llama-3.1-sonar-small';
-        $cost_per_1k = $costs[$provider][$model] ?? 0.0002;
-        
-        // Estimate 2K tokens per request
-        $estimated_cost = ($num_requests * 2 * $cost_per_1k);
-        
+
+        // Token usage assumptions per request (input + output)
+        // Standard scans aim for concise, parseable outputs.
+        $tokens_per_request = 2000; // default ~2K tokens
+        if ($provider === 'perplexity' && $model === 'sonar-deep-research') {
+            // Deep research typically uses more tokens
+            $tokens_per_request = 10000; // ~10K tokens
+        }
+
+        $cost_per_1k = $costs[$provider][$model] ?? (
+            $provider === 'perplexity' ? 0.00035 : 0.00015
+        );
+        $cost_per_request = ($tokens_per_request / 1000.0) * $cost_per_1k;
+        $total_estimated_cost = $num_requests * $cost_per_request;
+
         return array(
             'provider' => $provider,
             'model' => $model,
-            'cost_per_request' => $cost_per_1k * 2,
-            'total_estimated_cost' => $estimated_cost,
-            'currency' => 'USD'
+            'tokens_per_request_assumed' => $tokens_per_request,
+            'cost_per_1k_tokens' => $cost_per_1k,
+            'cost_per_request' => $cost_per_request,
+            'total_estimated_cost' => $total_estimated_cost,
+            'currency' => 'USD',
+            'estimation' => 'approximate'
         );
     }
 }
