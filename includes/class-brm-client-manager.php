@@ -184,14 +184,19 @@ class BRM_Client_Manager {
                         <tr>
                             <th>Name</th>
                             <th>Website</th>
-                            <th>Phone</th>
                             <th>Keywords</th>
-                            <th>Created</th>
+                            <th>Last Scanned</th>
+                            <th>Results</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($clients as $client): ?>
+                            <?php 
+                            $last_scan = BRM_Client_Manager::get_client_last_scan($client->id);
+                            $result_count = BRM_Client_Manager::get_client_result_count($client->id);
+                            ?>
                             <tr>
                                 <td><strong><?php echo esc_html($client->name); ?></strong></td>
                                 <td>
@@ -201,9 +206,24 @@ class BRM_Client_Manager {
                                         -
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo esc_html($client->phone ?: '-'); ?></td>
                                 <td><?php echo esc_html($client->keywords); ?></td>
-                                <td><?php echo date('M j, Y', strtotime($client->created_at)); ?></td>
+                                <td>
+                                    <?php if ($last_scan): ?>
+                                        <?php echo date('M j, Y H:i', strtotime($last_scan)); ?>
+                                    <?php else: ?>
+                                        <span class="brm-status-never">Never</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="brm-result-count"><?php echo $result_count; ?></span>
+                                </td>
+                                <td>
+                                    <?php if ($last_scan): ?>
+                                        <span class="brm-status-badge status-scanned">Scanned</span>
+                                    <?php else: ?>
+                                        <span class="brm-status-badge status-pending">Pending</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <button class="button button-small" onclick="brmEditClient(<?php echo $client->id; ?>)">Edit</button>
                                     <button class="button button-small" onclick="brmViewResults(<?php echo $client->id; ?>)">View Results</button>
@@ -217,5 +237,31 @@ class BRM_Client_Manager {
         </div>
         <?php
         return ob_get_clean();
+    }
+    
+    public static function get_client_last_scan($client_id) {
+        global $wpdb;
+        $logs_table = $wpdb->prefix . 'brm_monitoring_logs';
+        
+        $last_scan = $wpdb->get_var($wpdb->prepare(
+            "SELECT created_at FROM $logs_table 
+             WHERE client_id = %d AND action = 'client_scan_completed' 
+             ORDER BY created_at DESC LIMIT 1",
+            $client_id
+        ));
+        
+        return $last_scan;
+    }
+    
+    public static function get_client_result_count($client_id) {
+        global $wpdb;
+        $results_table = $wpdb->prefix . 'brm_monitoring_results';
+        
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $results_table WHERE client_id = %d",
+            $client_id
+        ));
+        
+        return intval($count);
     }
 }

@@ -14,6 +14,7 @@ class BRM_Admin {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
         add_action('wp_ajax_brm_get_stats', array($this, 'ajax_get_stats'));
         add_action('wp_ajax_brm_test_api', array($this, 'ajax_test_api'));
+        add_action('wp_ajax_brm_start_web_scraping', array($this, 'ajax_start_web_scraping'));
     }
     
     public function add_admin_menu() {
@@ -84,6 +85,38 @@ class BRM_Admin {
                     <?php $this->display_stats(); ?>
                 </div>
                 
+                <!-- Workflow Steps -->
+                <div class="brm-workflow">
+                    <div class="brm-workflow-step active" id="step-1">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Add Clients</h3>
+                            <p>Add your clients with their monitoring keywords</p>
+                            <button class="button button-primary" onclick="brmShowAddClientForm()">Add New Client</button>
+                        </div>
+                    </div>
+                    
+                    <div class="brm-workflow-step" id="step-2">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Review Clients</h3>
+                            <p>Review your client list and prepare for monitoring</p>
+                        </div>
+                    </div>
+                    
+                    <div class="brm-workflow-step" id="step-3">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Start Web Scraping</h3>
+                            <p>Begin monitoring all clients for brand mentions</p>
+                            <button class="button button-primary brm-start-scraping" onclick="brmStartWebScraping()" id="start-scraping-btn">
+                                <span class="btn-text">Start Web Scraping</span>
+                                <span class="btn-loading" style="display: none;">Scraping...</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="brm-main-content">
                     <div class="brm-clients-section">
                         <?php echo BRM_Client_Manager::get_clients_list_html(); ?>
@@ -146,6 +179,65 @@ class BRM_Admin {
         
         function brmViewResults(clientId) {
             window.location.href = '<?php echo admin_url('admin.php?page=brm-results'); ?>&client_id=' + clientId;
+        }
+        
+        function brmStartWebScraping() {
+            if (confirm('Start web scraping for all clients? This may take several minutes.')) {
+                var $btn = document.getElementById('start-scraping-btn');
+                var $btnText = $btn.querySelector('.btn-text');
+                var $btnLoading = $btn.querySelector('.btn-loading');
+                
+                // Show loading state
+                $btn.disabled = true;
+                $btnText.style.display = 'none';
+                $btnLoading.style.display = 'inline';
+                
+                jQuery.post(brm_ajax.ajax_url, {
+                    action: 'brm_start_web_scraping',
+                    nonce: brm_ajax.nonce
+                }, function(response) {
+                    if (response.success) {
+                        // Update workflow step
+                        document.getElementById('step-2').classList.add('completed');
+                        document.getElementById('step-3').classList.add('completed');
+                        
+                        // Show success message with results
+                        var message = 'Web scraping completed!\\n\\n';
+                        message += 'Total results found: ' + response.data.total_results + '\\n';
+                        message += 'Clients scanned: ' + response.data.clients_count + '\\n\\n';
+                        
+                        if (response.data.scanned_clients.length > 0) {
+                            message += 'Results by client:\\n';
+                            response.data.scanned_clients.forEach(function(client) {
+                                message += '• ' + client.name + ': ' + client.new_results + ' new results\\n';
+                            });
+                        }
+                        
+                        if (response.data.errors.length > 0) {
+                            message += '\\nErrors:\\n';
+                            response.data.errors.forEach(function(error) {
+                                message += '• ' + error + '\\n';
+                            });
+                        }
+                        
+                        alert(message);
+                        
+                        // Reload page to show updated data
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        alert('Error: ' + response.data);
+                    }
+                }).fail(function() {
+                    alert('Network error. Please try again.');
+                }).always(function() {
+                    // Reset button state
+                    $btn.disabled = false;
+                    $btnText.style.display = 'inline';
+                    $btnLoading.style.display = 'none';
+                });
+            }
         }
         </script>
         <?php
@@ -413,6 +505,76 @@ class BRM_Admin {
         $test_result = $ai_service->test_api_connectivity();
         
         wp_send_json_success($test_result);
+    }
+    
+    public function ajax_start_web_scraping() {
+        check_ajax_referer('brm_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        // Get all active clients
+        $clients = BRM_Database::get_all_clients();
+        
+        if (empty($clients)) {
+            wp_send_json_error('No clients found. Please add clients first.');
+        }
+        
+        $monitor = new BRM_Monitor();
+        $total_results = 0;
+        $errors = array();
+        $scanned_clients = array();
+        
+        // Log the start of bulk scraping
+        BRM_Database::log_monitoring_action(null, 'bulk_scraping_started', 'Starting bulk web scraping for ' . count($clients) . ' clients');
+        
+        foreach ($clients as $client) {
+            try {
+                $results = $monitor->scan_client($client);
+                $total_results += count($results);
+                $scanned_clients[] = array(
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'new_results' => count($results)
+                );
+                
+                BRM_Database::log_monitoring_action(
+                    $client->id, 
+                    'client_scan_completed', 
+                    'Found ' . count($results) . ' new mentions',
+                    'success'
+                );
+                
+            } catch (Exception $e) {
+                $errors[] = "Client {$client->name}: " . $e->getMessage();
+                
+                BRM_Database::log_monitoring_action(
+                    $client->id, 
+                    'client_scan_failed', 
+                    $e->getMessage(),
+                    'error'
+                );
+            }
+        }
+        
+        // Update last scan time
+        update_option('brm_last_scan_time', current_time('mysql'));
+        
+        $log_message = "Bulk scraping completed. Found {$total_results} total results.";
+        if (!empty($errors)) {
+            $log_message .= " Errors: " . implode('; ', $errors);
+        }
+        
+        BRM_Database::log_monitoring_action(null, 'bulk_scraping_completed', $log_message);
+        
+        wp_send_json_success(array(
+            'message' => 'Web scraping completed successfully!',
+            'total_results' => $total_results,
+            'scanned_clients' => $scanned_clients,
+            'errors' => $errors,
+            'clients_count' => count($clients)
+        ));
     }
     
     private function display_health_status() {

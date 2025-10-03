@@ -4,6 +4,95 @@
     margin-top: 20px;
 }
 
+/* Workflow Steps */
+.brm-workflow {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e1e5e9;
+}
+
+.brm-workflow-step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    border: 2px solid #e1e5e9;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.brm-workflow-step.active {
+    border-color: #2271b1;
+    background: #f0f6fc;
+}
+
+.brm-workflow-step.completed {
+    border-color: #00a32a;
+    background: #f0f8f0;
+}
+
+.brm-workflow-step.completed .step-number {
+    background: #00a32a;
+    color: #fff;
+}
+
+.brm-workflow-step .step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e1e5e9;
+    color: #646970;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.brm-workflow-step.active .step-number {
+    background: #2271b1;
+    color: #fff;
+}
+
+.brm-workflow-step .step-content h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.brm-workflow-step .step-content p {
+    margin: 0 0 10px 0;
+    color: #646970;
+    font-size: 14px;
+}
+
+.brm-workflow-step .step-content .button {
+    margin-top: 10px;
+}
+
+.brm-start-scraping {
+    position: relative;
+    min-width: 150px;
+}
+
+.brm-start-scraping .btn-loading {
+    display: none;
+}
+
+.brm-start-scraping:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* Health Status Styles */
 .brm-health-status {
     margin-bottom: 30px;
@@ -446,4 +535,52 @@
 .button.brm-warning:hover {
     background: #b89000;
     border-color: #b89000;
+}
+
+/* Status Badges */
+.brm-status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-scanned {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.status-pending {
+    background: #fff3cd;
+    color: #664d03;
+}
+
+.brm-status-never {
+    color: #646970;
+    font-style: italic;
+}
+
+.brm-result-count {
+    font-weight: 600;
+    color: #2271b1;
+    font-size: 14px;
+}
+
+/* Workflow Responsive */
+@media (max-width: 768px) {
+    .brm-workflow {
+        flex-direction: column;
+    }
+    
+    .brm-workflow-step {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .brm-workflow-step .step-content {
+        width: 100%;
+    }
 }
