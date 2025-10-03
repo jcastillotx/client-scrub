@@ -1,0 +1,352 @@
+/* Brand Reputation Monitor Admin Styles */
+
+.brm-dashboard {
+    margin-top: 20px;
+}
+
+.brm-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.brm-stat-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.brm-stat-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.brm-stat-number {
+    font-size: 32px;
+    font-weight: 600;
+    color: #2271b1;
+    line-height: 1;
+}
+
+.brm-sentiment-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.brm-sentiment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sentiment-positive {
+    color: #00a32a;
+    font-weight: 600;
+}
+
+.sentiment-negative {
+    color: #d63638;
+    font-weight: 600;
+}
+
+.sentiment-neutral {
+    color: #50575e;
+    font-weight: 600;
+}
+
+.brm-main-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+}
+
+.brm-clients-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.brm-form-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+}
+
+.brm-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ccd0d4;
+}
+
+.brm-form-group {
+    margin-bottom: 20px;
+}
+
+.brm-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.brm-form-group input,
+.brm-form-group textarea,
+.brm-form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.brm-form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.brm-form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #646970;
+    font-style: italic;
+}
+
+.brm-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #ccd0d4;
+}
+
+.brm-filters {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.brm-filters form {
+    display: flex;
+    gap: 15px;
+    align-items: end;
+}
+
+.brm-filters select,
+.brm-filters input[type="submit"] {
+    padding: 8px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+}
+
+.brm-results-list {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.brm-type-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.type-article {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.type-news {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.type-social {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.type-blog {
+    background: #e8f5e8;
+    color: #388e3c;
+}
+
+.type-forum {
+    background: #fce4ec;
+    color: #c2185b;
+}
+
+.brm-sentiment-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sentiment-positive {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.sentiment-negative {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.sentiment-neutral {
+    background: #f5f5f5;
+    color: #616161;
+}
+
+.brm-cost-estimate {
+    background: #f0f6fc;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-top: 30px;
+}
+
+.brm-cost-estimate h3 {
+    margin-top: 0;
+    color: #1d2327;
+}
+
+.brm-cost-estimate p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.brm-cost-estimate strong {
+    color: #1d2327;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .brm-main-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .brm-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .brm-list-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .brm-filters form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Loading States */
+.brm-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.brm-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #2271b1;
+    border-radius: 50%;
+    animation: brm-spin 1s linear infinite;
+}
+
+@keyframes brm-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Table Enhancements */
+.wp-list-table .column-title {
+    width: 40%;
+}
+
+.wp-list-table .column-source {
+    width: 15%;
+}
+
+.wp-list-table .column-type {
+    width: 10%;
+}
+
+.wp-list-table .column-sentiment {
+    width: 10%;
+}
+
+.wp-list-table .column-relevance {
+    width: 8%;
+}
+
+.wp-list-table .column-found {
+    width: 12%;
+}
+
+.wp-list-table .column-actions {
+    width: 15%;
+}
+
+/* Button Styles */
+.button.brm-primary {
+    background: #2271b1;
+    border-color: #2271b1;
+    color: #fff;
+}
+
+.button.brm-primary:hover {
+    background: #135e96;
+    border-color: #135e96;
+}
+
+.button.brm-success {
+    background: #00a32a;
+    border-color: #00a32a;
+    color: #fff;
+}
+
+.button.brm-success:hover {
+    background: #007a20;
+    border-color: #007a20;
+}
+
+.button.brm-warning {
+    background: #dba617;
+    border-color: #dba617;
+    color: #fff;
+}
+
+.button.brm-warning:hover {
+    background: #b89000;
+    border-color: #b89000;
+}
