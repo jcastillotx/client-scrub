@@ -204,6 +204,46 @@ jQuery(document).ready(function($) {
         });
     };
 
+    // Validate saved monitoring results (optional by client)
+    window.brmValidateResults = function(clientId) {
+        var confirmText = clientId && clientId > 0
+            ? 'Validate results for this client? Invalid/fake links will be deleted.'
+            : 'Validate all results across clients? Invalid/fake links will be deleted.';
+        if (!confirm(confirmText)) {
+            return;
+        }
+
+        var $button = jQuery('button[onclick*="brmValidateResults"]');
+        var originalText = $button.text();
+        $button.prop('disabled', true).text('Validating...');
+
+        var progressNotice = showNoticePersistent('Validation in progress...', 'info');
+
+        jQuery.post(brm_ajax.ajax_url, {
+            action: 'brm_validate_results',
+            client_id: clientId || 0,
+            nonce: brm_ajax.nonce
+        }, function(response) {
+            if (progressNotice) { progressNotice.remove(); }
+
+            if (response.success) {
+                var d = response.data || {};
+                showNotice('Validation completed. Checked: ' + (d.checked || 0) + ', Deleted: ' + (d.deleted || 0) + ', Valid: ' + (d.valid || 0), 'success');
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotice('Error: ' + response.data, 'error');
+            }
+        }).fail(function(xhr, status, error) {
+            if (progressNotice) { progressNotice.remove(); }
+            showNotice('Network error. Please try again.', 'error');
+            console.error('Validate Results Error:', xhr, status, error);
+        }).always(function() {
+            $button.prop('disabled', false).text(originalText);
+        });
+    };
+
     // Auto-refresh stats every 30 seconds
     if (typeof brm_ajax !== 'undefined' && $('.brm-stats-grid').length > 0) {
         setInterval(function() {

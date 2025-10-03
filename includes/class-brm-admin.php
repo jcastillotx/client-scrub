@@ -16,6 +16,7 @@ class BRM_Admin {
         add_action('wp_ajax_brm_test_api', array($this, 'ajax_test_api'));
         add_action('wp_ajax_brm_start_web_scraping', array($this, 'ajax_start_web_scraping'));
         add_action('wp_ajax_brm_delete_result', array($this, 'ajax_delete_result'));
+        add_action('wp_ajax_brm_validate_results', array($this, 'ajax_validate_results'));
     }
     
     public function add_admin_menu() {
@@ -243,6 +244,13 @@ class BRM_Admin {
                 </form>
             </div>
             
+            <div class="brm-validation-actions" style="margin: 10px 0 20px;">
+                <button class="button button-secondary" onclick="brmValidateResults(<?php echo $client_id ? $client_id : 0; ?>)">
+                    Validate Results<?php echo $client_id ? ' (This Client)' : ''; ?>
+                </button>
+                <small class="description">Checks saved URLs and deletes invalid or fake ones.</small>
+            </div>
+
             <div class="brm-results-list">
                 <?php $this->display_results($client_id, $type_filter); ?>
             </div>
@@ -551,6 +559,68 @@ class BRM_Admin {
         } else {
             wp_send_json_error('Failed to delete result');
         }
+    }
+
+    public function ajax_validate_results() {
+        check_ajax_referer('brm_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $client_id = isset($_POST['client_id']) ? intval($_POST['client_id']) : 0;
+        global $wpdb;
+        $table = $wpdb->prefix . 'brm_monitoring_results';
+
+        $where = "status != 'deleted'";
+        $params = array();
+        if ($client_id > 0) {
+            $where .= " AND client_id = %d";
+            $params[] = $client_id;
+        }
+
+        BRM_Database::log_monitoring_action(
+            $client_id > 0 ? $client_id : null,
+            'validation_started',
+            $client_id > 0 ? 'Validation started for client ' . $client_id : 'Validation started for all clients',
+            'info'
+        );
+
+        $sql = "SELECT id, url FROM $table WHERE $where";
+        $rows = !empty($params) ? $wpdb->get_results($wpdb->prepare($sql, $params)) : $wpdb->get_results($sql);
+
+        $ai = new BRM_AI_Service();
+        $checked = 0;
+        $deleted = 0;
+        $valid = 0;
+
+        foreach ($rows as $row) {
+            $checked++;
+            $url = $ai->normalize_url($row->url);
+            if (!empty($url) && $ai->validate_url($url)) {
+                $valid++;
+                continue;
+            }
+            $res = BRM_Database::delete_monitoring_result($row->id);
+            if ($res !== false) {
+                $deleted++;
+            }
+        }
+
+        BRM_Database::log_monitoring_action(
+            $client_id > 0 ? $client_id : null,
+            'validation_completed',
+            "Validation completed. Checked: $checked, Deleted: $deleted, Valid: $valid",
+            'success'
+        );
+
+        wp_send_json_success(array(
+            'message' => 'Validation completed',
+            'checked' => $checked,
+            'deleted' => $deleted,
+            'valid' => $valid,
+            'client_id' => $client_id
+        ));
     }
     
     private function display_health_status() {
