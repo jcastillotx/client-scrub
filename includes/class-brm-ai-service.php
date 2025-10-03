@@ -20,15 +20,36 @@ class BRM_AI_Service {
      */
     public function search_mentions($keywords, $client_name, $max_results = 20) {
         $provider = $this->settings['ai_provider'] ?? 'openrouter';
+        $api_key = $this->settings['api_key'] ?? '';
+        
+        // Check if API key is configured
+        if (empty($api_key)) {
+            BRM_Database::log_monitoring_action(null, 'ai_search_failed', 'No API key configured', 'error');
+            return array('error' => 'API key not configured. Please configure your AI provider settings.');
+        }
+        
+        BRM_Database::log_monitoring_action(null, 'ai_search_started', "Starting AI search for {$client_name} with {$provider}", 'info');
         
         switch ($provider) {
             case 'openrouter':
-                return $this->search_with_openrouter($keywords, $client_name, $max_results);
+                $result = $this->search_with_openrouter($keywords, $client_name, $max_results);
+                break;
             case 'perplexity':
-                return $this->search_with_perplexity($keywords, $client_name, $max_results);
+                $result = $this->search_with_perplexity($keywords, $client_name, $max_results);
+                break;
             default:
-                return $this->search_with_openrouter($keywords, $client_name, $max_results);
+                $result = $this->search_with_openrouter($keywords, $client_name, $max_results);
         }
+        
+        // Log the result
+        if (isset($result['error'])) {
+            BRM_Database::log_monitoring_action(null, 'ai_search_failed', $result['error'], 'error');
+        } else {
+            $result_count = isset($result['results']) ? count($result['results']) : 0;
+            BRM_Database::log_monitoring_action(null, 'ai_search_completed', "Found {$result_count} results", 'success');
+        }
+        
+        return $result;
     }
     
     /**
@@ -262,6 +283,11 @@ class BRM_AI_Service {
                 'sentiment' => 'neutral',
                 'relevance_score' => 0.5
             );
+        }
+        
+        // If no URLs found, return empty results instead of dummy data
+        if (empty($results)) {
+            return array('results' => array());
         }
         
         return array('results' => $results);
