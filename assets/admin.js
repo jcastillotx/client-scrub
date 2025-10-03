@@ -18,8 +18,15 @@ jQuery(document).ready(function($) {
         $.post(brm_ajax.ajax_url, {
             action: action,
             nonce: brm_ajax.nonce,
-            data: formData
+            name: $('#client_name').val(),
+            address: $('#client_address').val(),
+            website: $('#client_website').val(),
+            phone: $('#client_phone').val(),
+            email: $('#client_email').val(),
+            keywords: $('#client_keywords').val(),
+            client_id: $('input[name="client_id"]').val()
         }, function(response) {
+            console.log('AJAX Response:', response); // Debug log
             if (response.success) {
                 // Show success message
                 showNotice('Client saved successfully!', 'success');
@@ -31,7 +38,8 @@ jQuery(document).ready(function($) {
             } else {
                 showNotice('Error: ' + response.data, 'error');
             }
-        }).fail(function() {
+        }).fail(function(xhr, status, error) {
+            console.log('AJAX Error:', xhr, status, error); // Debug log
             showNotice('Network error. Please try again.', 'error');
         }).always(function() {
             $('#brm-client-form').removeClass('brm-loading');
