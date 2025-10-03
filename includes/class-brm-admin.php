@@ -142,46 +142,53 @@ class BRM_Admin {
                 $btn.disabled = true;
                 $btnText.style.display = 'none';
                 $btnLoading.style.display = 'inline';
+
+                // Show persistent progress notice and periodically refresh stats
+                var progressNotice = typeof showNoticePersistent === 'function'
+                    ? showNoticePersistent('Starting web scraping... Progress will update automatically.', 'info')
+                    : null;
+                var refreshInterval = setInterval(function() {
+                    if (typeof refreshStats === 'function') {
+                        refreshStats();
+                    }
+                }, 5000);
                 
                 jQuery.post(brm_ajax.ajax_url, {
                     action: 'brm_start_web_scraping',
                     nonce: brm_ajax.nonce
                 }, function(response) {
+                    // Clear progress UI
+                    if (refreshInterval) { clearInterval(refreshInterval); }
+                    if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
+
                     if (response.success) {
                         // Update workflow step
                         document.getElementById('step-2').classList.add('completed');
                         document.getElementById('step-3').classList.add('completed');
                         
-                        // Show success message with results
-                        var message = 'Web scraping completed!\\n\\n';
-                        message += 'Total results found: ' + response.data.total_results + '\\n';
-                        message += 'Clients scanned: ' + response.data.clients_count + '\\n\\n';
-                        
-                        if (response.data.scanned_clients.length > 0) {
-                            message += 'Results by client:\\n';
-                            response.data.scanned_clients.forEach(function(client) {
-                                message += '• ' + client.name + ': ' + client.new_results + ' new results\\n';
-                            });
+                        // Show success toast notice
+                        var summary = 'Web scraping completed successfully. Total results: ' +
+                                      response.data.total_results + '. Clients scanned: ' +
+                                      response.data.clients_count + '.';
+                        if (typeof showNotice === 'function') {
+                            showNotice(summary, 'success');
                         }
-                        
-                        if (response.data.errors.length > 0) {
-                            message += '\\nErrors:\\n';
-                            response.data.errors.forEach(function(error) {
-                                message += '• ' + error + '\\n';
-                            });
-                        }
-                        
-                        alert(message);
-                        
+
                         // Reload page to show updated data
                         setTimeout(function() {
                             location.reload();
-                        }, 2000);
+                        }, 1500);
                     } else {
-                        alert('Error: ' + response.data);
+                        if (typeof showNotice === 'function') {
+                            showNotice('Error: ' + response.data, 'error');
+                        }
                     }
                 }).fail(function() {
-                    alert('Network error. Please try again.');
+                    if (refreshInterval) { clearInterval(refreshInterval); }
+                    if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
+                    if (typeof showNotice === 'function') {
+                        showNotice('Network error. Please try again.', 'error');
+                    }
                 }).always(function() {
                     // Reset button state
                     $btn.disabled = false;
@@ -204,8 +211,8 @@ class BRM_Admin {
             
             <?php if ($client_id): ?>
                 <?php $client = BRM_Database::get_client($client_id); ?>
-                <h2>Results for: <?php echo esc_html($client->name); ?></h2>
-                <button class="button button-primary" onclick="brmManualScan(<?php echo $client_id; ?>)">Run Manual Scan</button>
+                <h2>Results for: <?php echo esc_html($client->name ?></</h2>
+               <<button class="button button-primary" id="brm-manual-scan-btn" onclick="brmient_id; ?>)">Run Manual Scan</button>
             <?php endif; ?>
             
             <div class="brm-filters">

@@ -50,26 +50,36 @@ jQuery(document).ready(function($) {
     // Handle manual scan
     window.brmManualScan = function(clientId) {
         if (confirm('Run manual scan for this client? This may take a few minutes.')) {
-            var $button = $('button[onclick*="brmManualScan"]');
+            var $button = $('#brm-manual-scan-btn');
+            if (!$button.length) {
+                $button = $('button[onclick*="brmManualScan"]');
+            }
+            var originalText = $button.text();
             $button.prop('disabled', true).text('Scanning...');
+
+            var progressNotice = showNoticePersistent('Manual scan in progress...', 'info');
             
             $.post(brm_ajax.ajax_url, {
                 action: 'brm_manual_scan',
                 client_id: clientId,
                 nonce: brm_ajax.nonce
             }, function(response) {
+                if (progressNotice) { progressNotice.remove(); }
+
                 if (response.success) {
                     showNotice('Scan completed! Found ' + response.data.new_results + ' new results.', 'success');
                     setTimeout(function() {
-                        location.reload();
-                    }, 2000);
+                        // Navigate to refresh results view without relying on manual reload
+                        window.location.href = 'admin.php?page=brm-results&client_id=' + clientId;
+                    }, 1200);
                 } else {
                     showNotice('Error: ' + response.data, 'error');
                 }
             }).fail(function() {
+                if (progressNotice) { progressNotice.remove(); }
                 showNotice('Network error. Please try again.', 'error');
             }).always(function() {
-                $button.prop('disabled', false).text('Run Manual Scan');
+                $button.prop('disabled', false).text(originalText);
             });
         }
     };
@@ -230,8 +240,15 @@ jQuery(document).ready(function($) {
 
 // Utility functions
 function showNotice(message, type) {
-    var noticeClass = type === 'success' ? 'notice-success' : 'notice-error';
-    var $notice = $('<div class="notice ' + noticeClass + ' is-dismissible"><p>' + message + '</p></div>');
+    var noticeClass;
+    switch (type) {
+        case 'success': noticeClass = 'notice-success'; break;
+        case 'error': noticeClass = 'notice-error'; break;
+        case 'warning': noticeClass = 'notice-warning'; break;
+        default: noticeClass = 'notice-info';
+    }
+    var $notice  $('< div class="notice ' + noticeClass + ' is-dismissibl"><)p>' + message '</ ></;
+div>');
     
     $('.wrap h1').after($notice);
     
@@ -243,6 +260,8 @@ function showNotice(message, type) {
     }, 5000);
 }
 
+// Persistent notice (does not auto-dismiss). Returns the jQuery element so callers can remove it.
+function showNotice
 function refreshStats() {
     $.post(brm_ajax.ajax_url, {
         action: 'brm_get_stats',
