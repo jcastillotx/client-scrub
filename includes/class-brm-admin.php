@@ -259,9 +259,7 @@ class BRM_Admin {
             // Reschedule cron based on monitoring frequency
             $schedule = in_array($settings['monitoring_frequency'], array('hourly','twicedaily','daily')) ? $settings['monitoring_frequency'] : 'daily';
             wp_clear_scheduled_hook('brm_daily_monitoring');
-            if (!wp_next_scheduled('brm_daily_monitoring')) {
-                wp_schedule_event(time(), $schedule, 'brm_daily_monitoring');
-            }
+            wp_schedule_event(time(), $schedule, 'brm_daily_monitoring');
 
             echo '<div class="notice notice-success"><p>Settings saved successfully! Monitoring schedule updated.</p></div>';
         }
