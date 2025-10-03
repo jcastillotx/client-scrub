@@ -258,7 +258,7 @@ class BRM_Client_Manager {
         $results_table = $wpdb->prefix . 'brm_monitoring_results';
         
         $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $results_table WHERE client_id = %d",
+            "SELECT COUNT(*) FROM $results_table WHERE client_id = %d AND status != 'deleted'",
             $client_id
         ));
         

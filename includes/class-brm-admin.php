@@ -17,6 +17,7 @@ class BRM_Admin {
         add_action('wp_ajax_brm_start_web_scraping', array($this, 'ajax_start_web_scraping'));
         add_action('wp_ajax_brm_delete_result', array($this, 'ajax_delete_result'));
         add_action('wp_ajax_brm_validate_results', array($this, 'ajax_validate_results'));
+        add_action('wp_ajax_brm_purge_deleted_results', array($this, 'ajax_purge_deleted_results'));
     }
     
     public function add_admin_menu() {
@@ -206,6 +207,7 @@ class BRM_Admin {
     public function results_page() {
         $client_id = isset($_GET['client_id']) ? intval($_GET['client_id']) : null;
         $type_filter = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : null;
+        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : 'active'; // active | deleted
         $clients = BRM_Database::get_all_clients();
         
         ?>
@@ -239,6 +241,11 @@ class BRM_Admin {
                         <option value="blog" <?php selected($type_filter, 'blog'); ?>>Blog Posts</option>
                         <option value="forum" <?php selected($type_filter, 'forum'); ?>>Forum Posts</option>
                     </select>
+
+                    <select name="status">
+                        <option value="active" <?php selected($status_filter, 'active'); ?>>Active</option>
+                        <option value="deleted" <?php selected($status_filter, 'deleted'); ?>>Deleted</option>
+                    </select>
                     
                     <input type="submit" class="button" value="Filter">
                 </form>
@@ -249,13 +256,50 @@ class BRM_Admin {
                     Validate Results<?php echo $client_id ? ' (This Client)' : ''; ?>
                 </button>
                 <small class="description">Checks saved URLs and deletes invalid or fake ones.</small>
+                <button class="button" style="margin-left:10px" onclick="brmPurgeDeleted(<?php echo $client_id ? $client_id : 0; ?>)">
+                    Purge Deleted<?php echo $client_id ? ' (This Client)' : ' (All Clients)'; ?>
+                </button>
+                <small class="description">Permanently removes deleted results from the database.</small>
             </div>
 
             <div class="brm-results-list">
-                <?php $this->display_results($client_id, $type_filter); ?>
+                <?php $this->display_results($client_id, $type_filter, $status_filter); ?>
             </div>
         </div>
         
+        <script>
+        function brmPurgeDeleted(clientId) {
+            if (!confirm('This will permanently remove deleted results. Continue?')) {
+                return;
+            }
+            var notice = typeof showNoticePersistent === 'function'
+                ? showNoticePersistent('Purging deleted results...', 'info')
+                : null;
+
+            jQuery.post(brm_ajax.ajax_url, {
+                action: 'brm_purge_deleted_results',
+                nonce: brm_ajax.nonce,
+                client_id: clientId || 0
+            }, function(response) {
+                if (notice && notice.remove) { notice.remove(); }
+                if (response.success) {
+                    if (typeof showNotice === 'function') {
+                        showNotice('Purged ' + response.data.purged + ' deleted result(s).', 'success');
+                    }
+                    setTimeout(function(){ location.reload(); }, 1000);
+                } else {
+                    if (typeof showNotice === 'function') {
+                        showNotice('Error: ' + response.data, 'error');
+                    }
+                }
+            }).fail(function() {
+                if (notice && notice.remove) { notice.remove(); }
+                if (typeof showNotice === 'function') {
+                    showNotice('Network error while purging.', 'error');
+                }
+            });
+        }
+        </script>
         
         <?php
     }
@@ -393,8 +437,8 @@ class BRM_Admin {
         <?php
     }
     
-    private function display_results($client_id = null, $type_filter = null) {
-        $results = BRM_Monitor::get_client_results($client_id, $type_filter, 100);
+    private function display_results($client_id = null, $type_filter = null, $status_filter = 'active') {
+        $results = BRM_Monitor::get_client_results($client_id, $type_filter, 100, $status_filter);
         
         if (empty($results)) {
             echo '<p>No results found.</p>';
@@ -411,6 +455,7 @@ class BRM_Admin {
                     <th>Sentiment</th>
                     <th>Relevance</th>
                     <th>Found</th>
+                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -436,9 +481,14 @@ class BRM_Admin {
                         </td>
                         <td><?php echo number_format($result->relevance_score * 100, 1); ?>%</td>
                         <td><?php echo date('M j, Y', strtotime($result->found_at)); ?></td>
+                        <td><?php echo isset($result->status) ? esc_html($result->status) : 'active'; ?></td>
                         <td>
                             <a href="<?php echo esc_url($result->url); ?>" target="_blank" rel="noopener" class="button button-small">View</a>
-                            <button class="button button-small button-link-delete" onclick="brmDeleteResult(<?php echo intval($result->id); ?>)">Delete</button>
+                            <?php if (($result->status ?? 'active') !== 'deleted'): ?>
+                                <button class="button button-small button-link-delete" onclick="brmDeleteResult(<?php echo intval($result->id); ?>)">Delete</button>
+                            <?php else: ?>
+                                <span class="description">Deleted</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -619,6 +669,38 @@ class BRM_Admin {
             'checked' => $checked,
             'deleted' => $deleted,
             'valid' => $valid,
+            'client_id' => $client_id
+        ));
+    }
+
+    public function ajax_purge_deleted_results() {
+        check_ajax_referer('brm_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $client_id = isset($_POST['client_id']) ? intval($_POST['client_id']) : 0;
+
+        BRM_Database::log_monitoring_action(
+            $client_id > 0 ? $client_id : null,
+            'purge_deleted_started',
+            $client_id > 0 ? 'Purging deleted results for client ' . $client_id : 'Purging deleted results for all clients',
+            'info'
+        );
+
+        $purged = BRM_Database::purge_deleted_results($client_id > 0 ? $client_id : null);
+
+        BRM_Database::log_monitoring_action(
+            $client_id > 0 ? $client_id : null,
+            'purge_deleted_completed',
+            "Purged $purged deleted result(s)",
+            'success'
+        );
+
+        wp_send_json_success(array(
+            'message' => 'Purge completed',
+            'purged' => intval($purged),
             'client_id' => $client_id
         ));
     }
