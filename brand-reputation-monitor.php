@@ -1,10 +1,11 @@
 <?php
 /**
  * Plugin Name: Brand Reputation Monitor
- * Plugin URI: https://yourwebsite.com/brand-reputation-monitor
+ * Plugin URI: https://www.kre8ivtech.com
  * Description: Monitor client brand reputation by tracking mentions, articles, news, and backlinks across the web using AI-powered analysis.
- * Version: 1.0.0
- * Author: Your Name
+ * Version: 1.1.0
+ * Author: Kre8ivTech
+ * Author URI: https://www.kre8ivtech.com
  * License: GPL v2 or later
  * Text Domain: brand-reputation-monitor
  */
@@ -17,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('BRM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('BRM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('BRM_VERSION', '1.0.0');
+define('BRM_VERSION', '1.1.0');
 
 // Include required files
 require_once BRM_PLUGIN_PATH . 'includes/class-brm-database.php';
