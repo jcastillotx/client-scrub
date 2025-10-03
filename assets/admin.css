@@ -123,8 +123,9 @@
 
 .brm-health-item {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
 }
 
 .brm-health-label {
@@ -172,7 +173,8 @@
     color: #d63638;
     font-size: 12px;
     font-style: italic;
-    margin-top: 2px;
+    margin-top: 6px;
+    flex-basis: 100%;
 }
 
 .brm-health-actions {
