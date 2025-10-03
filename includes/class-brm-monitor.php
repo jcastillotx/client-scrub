@@ -302,7 +302,11 @@ class BRM_Monitor {
     /**
      * Get results for a specific client
      */
-    public static function get_client_results($client_id, $type = null, $limit = 50) {
+    public static function get_client_results($client_id, $type = null, $limit = 50, $status = null) {
+        if ($status === 'deleted') {
+            return BRM_Database::get_monitoring_results_deleted($client_id, $type, $limit);
+        }
+        // Default/active results exclude deleted
         return BRM_Database::get_monitoring_results($client_id, $type, $limit);
     }
     

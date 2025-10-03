@@ -206,6 +206,43 @@ class BRM_Database {
         
         return $wpdb->get_results($wpdb->prepare($sql, $where_values));
     }
+
+    public static function get_monitoring_results_deleted($client_id = null, $type = null, $limit = 50) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'brm_monitoring_results';
+        
+        $where = array("status = 'deleted'");
+        $where_values = array();
+        
+        if ($client_id) {
+            $where[] = "client_id = %d";
+            $where_values[] = $client_id;
+        }
+        
+        if ($type) {
+            $where[] = "type = %s";
+            $where_values[] = $type;
+        }
+        
+        $where_clause = 'WHERE ' . implode(' AND ', $where);
+        $sql = "SELECT * FROM $table $where_clause ORDER BY found_at DESC LIMIT %d";
+        $where_values[] = $limit;
+        
+        return $wpdb->get_results($wpdb->prepare($sql, $where_values));
+    }
+
+    public static function purge_deleted_results($client_id = null) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'brm_monitoring_results';
+
+        if ($client_id) {
+            $sql = "DELETE FROM $table WHERE status = 'deleted' AND client_id = %d";
+            return $wpdb->query($wpdb->prepare($sql, $client_id));
+        } else {
+            $sql = "DELETE FROM $table WHERE status = 'deleted'";
+            return $wpdb->query($sql);
+        }
+    }
     
     public static function log_monitoring_action($client_id, $action, $details, $status = 'success') {
         global $wpdb;
