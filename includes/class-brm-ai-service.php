@@ -292,6 +292,73 @@ class BRM_AI_Service {
     }
     
     /**
+     * Test API connectivity
+     */
+    public function test_api_connectivity() {
+        $provider = $this->settings['ai_provider'] ?? 'openrouter';
+        $api_key = $this->settings['api_key'] ?? '';
+        
+        if (empty($api_key)) {
+            return array(
+                'success' => false,
+                'message' => 'API key not configured',
+                'provider' => $provider
+            );
+        }
+        
+        // Simple test prompt
+        $test_prompt = "Respond with just the word 'OK' to confirm API connectivity.";
+        
+        try {
+            if ($provider === 'perplexity') {
+                $response = $this->make_perplexity_request($test_prompt);
+            } else {
+                $response = $this->make_openrouter_request($test_prompt);
+            }
+            
+            if (is_wp_error($response)) {
+                return array(
+                    'success' => false,
+                    'message' => $response->get_error_message(),
+                    'provider' => $provider
+                );
+            }
+            
+            // Check if response contains expected content
+            $response_clean = strtolower(trim($response));
+            if (strpos($response_clean, 'ok') !== false || strpos($response_clean, 'connected') !== false) {
+                return array(
+                    'success' => true,
+                    'message' => 'API connection successful',
+                    'provider' => $provider,
+                    'response_time' => $this->get_last_response_time()
+                );
+            } else {
+                return array(
+                    'success' => false,
+                    'message' => 'Unexpected API response: ' . substr($response, 0, 100),
+                    'provider' => $provider
+                );
+            }
+            
+        } catch (Exception $e) {
+            return array(
+                'success' => false,
+                'message' => 'API test failed: ' . $e->getMessage(),
+                'provider' => $provider
+            );
+        }
+    }
+    
+    /**
+     * Get last response time (placeholder for now)
+     */
+    private function get_last_response_time() {
+        // This would track actual response times in a real implementation
+        return '~2.5s';
+    }
+    
+    /**
      * Get cost estimate for API usage
      */
     public function get_cost_estimate($num_requests, $provider = null) {

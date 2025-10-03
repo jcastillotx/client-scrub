@@ -58,6 +58,9 @@ class BRM_Monitor {
         
         BRM_Database::log_monitoring_action(null, 'daily_scan_completed', $log_message);
         
+        // Update last scan time
+        update_option('brm_last_scan_time', current_time('mysql'));
+        
         // Send notification email if configured
         $this->send_notification_email($total_results, $errors);
     }

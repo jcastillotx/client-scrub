@@ -45,8 +45,85 @@ class BrandReputationMonitor {
         new BRM_AI_Service();
         new BRM_Admin();
         
+        // Add REST API endpoints
+        add_action('rest_api_init', array($this, 'register_rest_routes'));
+        
         // Load text domain for translations
         load_plugin_textdomain('brand-reputation-monitor', false, dirname(plugin_basename(__FILE__)) . '/languages');
+    }
+    
+    /**
+     * Register REST API routes
+     */
+    public function register_rest_routes() {
+        register_rest_route('brm/v1', '/health', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'health_check'),
+            'permission_callback' => '__return_true'
+        ));
+        
+        register_rest_route('brm/v1', '/status', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'api_status'),
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            }
+        ));
+    }
+    
+    /**
+     * Health check endpoint
+     */
+    public function health_check($request) {
+        $ai_service = new BRM_AI_Service();
+        $settings = get_option('brm_settings', array());
+        
+        $health_data = array(
+            'status' => 'healthy',
+            'timestamp' => current_time('mysql'),
+            'plugin_version' => BRM_VERSION,
+            'wordpress_version' => get_bloginfo('version'),
+            'api_configured' => !empty($settings['api_key']),
+            'ai_provider' => $settings['ai_provider'] ?? 'not_configured',
+            'clients_count' => count(BRM_Database::get_all_clients()),
+            'last_scan' => get_option('brm_last_scan_time', 'never')
+        );
+        
+        // Test API connectivity if configured
+        if (!empty($settings['api_key'])) {
+            $test_result = $ai_service->test_api_connectivity();
+            $health_data['api_test'] = $test_result;
+            
+            if (!$test_result['success']) {
+                $health_data['status'] = 'degraded';
+            }
+        } else {
+            $health_data['api_test'] = array(
+                'success' => false,
+                'message' => 'API key not configured'
+            );
+            $health_data['status'] = 'not_configured';
+        }
+        
+        return new WP_REST_Response($health_data, 200);
+    }
+    
+    /**
+     * API status endpoint for admin
+     */
+    public function api_status($request) {
+        $ai_service = new BRM_AI_Service();
+        $settings = get_option('brm_settings', array());
+        
+        $status_data = array(
+            'api_configured' => !empty($settings['api_key']),
+            'ai_provider' => $settings['ai_provider'] ?? 'not_configured',
+            'connectivity_test' => $ai_service->test_api_connectivity(),
+            'monitoring_stats' => BRM_Monitor::get_monitoring_stats(),
+            'recent_logs' => BRM_Monitor::get_recent_logs(10)
+        );
+        
+        return new WP_REST_Response($status_data, 200);
     }
     
     public function activate() {
