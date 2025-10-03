@@ -211,8 +211,8 @@ class BRM_Admin {
             
             <?php if ($client_id): ?>
                 <?php $client = BRM_Database::get_client($client_id); ?>
-                <h2>Results for: <?php echo esc_html($client->name ?></</h2>
-               <<button class="button button-primary" id="brm-manual-scan-btn" onclick="brmient_id; ?>)">Run Manual Scan</button>
+                <h2>Results for: <?php echo esc_html($client->name); ?></h2>
+                <button class="button button-primary" id="brm-manual-scan-btn" onclick="brmManualScan(<?php echo $client_id; ?>)">Run Manual Scan</button>
             <?php endif; ?>
             
             <div class="brm-filters">
@@ -587,26 +587,44 @@ class BRM_Admin {
             const originalText = button.textContent;
             button.textContent = 'Testing...';
             button.disabled = true;
+
+            var progressNotice = typeof showNoticePersistent === 'function'
+                ? showNoticePersistent('Testing API connection...', 'info')
+                : null;
             
             jQuery.post(brm_ajax.ajax_url, {
                 action: 'brm_test_api',
                 nonce: brm_ajax.nonce
             }, function(response) {
+                if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
                 button.textContent = originalText;
                 button.disabled = false;
                 
                 if (response.success) {
                     if (response.data.success) {
-                        alert('API test successful! ' + response.data.message);
+                        if (typeof showNotice === 'function') {
+                            showNotice('API test successful! ' + response.data.message, 'success');
+                        }
                     } else {
-                        alert('API test failed: ' + response.data.message);
+                        if (typeof showNotice === 'function') {
+                            showNotice('API test failed: ' + response.data.message, 'error');
+                        }
                     }
                 } else {
-                    alert('Error testing API: ' + response.data);
+                    if (typeof showNotice === 'function') {
+                        showNotice('Error testing API: ' + response.data, 'error');
+                    }
                 }
                 
                 // Refresh the page to update status
-                location.reload();
+                setTimeout(function() { location.reload(); }, 1200);
+            }).fail(function() {
+                if (progressNotice && progressNotice.remove) { progressNotice.remove(); }
+                button.textContent = originalText;
+                button.disabled = false;
+                if (typeof showNotice === 'function') {
+                    showNotice('Network error while testing API.', 'error');
+                }
             });
         }
         
