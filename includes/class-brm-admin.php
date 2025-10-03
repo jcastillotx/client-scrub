@@ -402,7 +402,7 @@ class BRM_Admin {
                 <?php submit_button(); ?>
             </form>
             
-            <div class="brm-cost-estimate">
+            <div class="brm-cost-estimate" id="brm-cost-estimate" data-num-clients="<?php echo intval($num_clients); ?>">
                 <h3>Cost Estimation</h3>
                 <?php
                 $ai_service = new BRM_AI_Service();
@@ -413,14 +413,71 @@ class BRM_Admin {
                 
                 $cost_estimate = $ai_service->get_cost_estimate($monthly_requests);
                 ?>
-                <p><strong>Estimated Monthly Cost:</strong> $<?php echo number_format($cost_estimate['total_estimated_cost'], 4); ?> USD</p>
-                <p><strong>Provider:</strong> <?php echo ucfirst($cost_estimate['provider']); ?></p>
-                <p><strong>Model:</strong> <?php echo $cost_estimate['model']; ?></p>
-                <p><strong>Cost per request:</strong> $<?php echo number_format($cost_estimate['cost_per_request'], 4); ?> USD</p>
-                <p><strong>Assumed tokens per request:</strong> <?php echo number_format($cost_estimate['tokens_per_request_assumed']); ?></p>
-                <p><strong>Cost per 1K tokens:</strong> $<?php echo number_format($cost_estimate['cost_per_1k_tokens'], 5); ?> USD</p>
+                <p><strong>Estimated Monthly Cost:</strong> $<span id="brm-monthly-cost"><?php echo number_format($cost_estimate['total_estimated_cost'], 4); ?></span> USD</p>
+                <p><strong>Provider:</strong> <span id="brm-provider"><?php echo ucfirst($cost_estimate['provider']); ?></span></p>
+                <p><strong>Model:</strong> <span id="brm-model"><?php echo $cost_estimate['model']; ?></span></p>
+                <p><strong>Cost per request:</strong> $<span id="brm-cost-per-request"><?php echo number_format($cost_estimate['cost_per_request'], 4); ?></span> USD</p>
+                <p><strong>Assumed tokens per request:</strong> <span id="brm-tokens"><?php echo number_format($cost_estimate['tokens_per_request_assumed']); ?></span></p>
+                <p><strong>Cost per 1K tokens:</strong> $<span id="brm-cost-per-1k"><?php echo number_format($cost_estimate['cost_per_1k_tokens'], 5); ?></span> USD</p>
                 <p><em>Estimation is approximate.</em></p>
             </div>
+            <script>
+            (function() {
+                var numClients = parseInt(document.getElementById('brm-cost-estimate').getAttribute('data-num-clients'), 10) || 0;
+                var providerSelect = document.querySelector('select[name="ai_provider"]');
+                var modelSelect = document.querySelector('select[name="perplexity_model"]');
+                var monthlySpan = document.getElementById('brm-monthly-cost');
+                var providerSpan = document.getElementById('brm-provider');
+                var modelSpan = document.getElementById('brm-model');
+                var cprSpan = document.getElementById('brm-cost-per-request');
+                var tokensSpan = document.getElementById('brm-tokens');
+                var cpkSpan = document.getElementById('brm-cost-per-1k');
+
+                function estimate() {
+                    var provider = providerSelect ? providerSelect.value : 'openrouter';
+                    var model = 'gpt-4o-mini';
+                    if (provider === 'perplexity') {
+                        model = modelSelect ? modelSelect.value : 'sonar-pro';
+                    }
+
+                    var costs = {
+                        openrouter: {
+                            'gpt-4o-mini': 0.00015,
+                            'gpt-3.5-turbo': 0.00050
+                        },
+                        perplexity: {
+                            'sonar': 0.00020,
+                            'sonar-pro': 0.00035,
+                            'sonar-deep-research': 0.00150,
+                            'sonar-reasoning': 0.00030,
+                            'sonar-reasoning-pro': 0.00075
+                        }
+                    };
+
+                    var tokensPerRequest = 2000;
+                    if (provider === 'perplexity' && model === 'sonar-deep-research') {
+                        tokensPerRequest = 10000;
+                    }
+
+                    var costPer1k = (costs[provider] && costs[provider][model]) ? costs[provider][model] : (provider === 'perplexity' ? 0.00035 : 0.00015);
+                    var costPerRequest = (tokensPerRequest / 1000.0) * costPer1k;
+                    var dailyRequests = numClients;
+                    var monthlyRequests = dailyRequests * 30;
+                    var monthlyCost = monthlyRequests * costPerRequest;
+
+                    providerSpan.textContent = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    modelSpan.textContent = model;
+                    cprSpan.textContent = costPerRequest.toFixed(4);
+                    tokensSpan.textContent = tokensPerRequest.toLocaleString();
+                    cpkSpan.textContent = costPer1k.toFixed(5);
+                    monthlySpan.textContent = monthlyCost.toFixed(4);
+                }
+
+                if (providerSelect) providerSelect.addEventListener('change', estimate);
+                if (modelSelect) modelSelect.addEventListener('change', estimate);
+                document.addEventListener('DOMContentLoaded', estimate);
+            })();
+            </script>
         </div>
         <?php
     }
