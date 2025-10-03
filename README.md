@@ -180,6 +180,13 @@ For support and feature requests, please contact the plugin developer or submit 
 
 ## Changelog
 
+### Version 1.3
+- Fixed incorrect result links by normalizing and validating URLs before saving
+- Filtered out fake/suspicious domains from AI results
+- Added ability to delete individual monitoring results from the admin Results page (soft delete)
+- Results page now includes a client filter to view results per client
+- Bumped plugin version to 1.3
+
 ### Version 1.0.0
 - Initial release
 - Client profile management

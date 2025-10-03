@@ -172,6 +172,38 @@ jQuery(document).ready(function($) {
         window.location.href = 'admin.php?page=brm-results&client_id=' + clientId;
     };
 
+    // Delete a monitoring result
+    window.brmDeleteResult = function(resultId) {
+        if (!confirm('Delete this result?')) {
+            return;
+        }
+        var $button = jQuery('button[onclick*="brmDeleteResult(' + resultId + ')"]');
+        var originalText = $button.text();
+        $button.prop('disabled', true).text('Deleting...');
+
+        jQuery.post(brm_ajax.ajax_url, {
+            action: 'brm_delete_result',
+            result_id: resultId,
+            nonce: brm_ajax.nonce
+        }, function(response) {
+            if (response.success) {
+                showNotice('Result deleted successfully!', 'success');
+                // Remove the row from the table
+                var $row = jQuery('tr[data-result-id="' + resultId + '"]');
+                if ($row.length) {
+                    $row.fadeOut(200, function() { jQuery(this).remove(); });
+                }
+            } else {
+                showNotice('Error: ' + response.data, 'error');
+            }
+        }).fail(function(xhr, status, error) {
+            showNotice('Network error. Please try again.', 'error');
+            console.error('Delete Result Error:', xhr, status, error);
+        }).always(function() {
+            $button.prop('disabled', false).text(originalText);
+        });
+    };
+
     // Auto-refresh stats every 30 seconds
     if (typeof brm_ajax !== 'undefined' && $('.brm-stats-grid').length > 0) {
         setInterval(function() {
