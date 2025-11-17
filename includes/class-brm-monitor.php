@@ -317,13 +317,22 @@ class BRM_Monitor {
         global $wpdb;
         $logs_table = $wpdb->prefix . 'brm_monitoring_logs';
         $clients_table = $wpdb->prefix . 'brm_clients';
-        
-        return $wpdb->get_results("
-            SELECT l.*, c.name as client_name 
-            FROM $logs_table l 
-            LEFT JOIN $clients_table c ON l.client_id = c.id 
-            ORDER BY l.created_at DESC 
-            LIMIT $limit
-        ");
+
+        // Sanitize limit to prevent SQL injection
+        $limit = absint($limit);
+        if ($limit < 1) {
+            $limit = 20;
+        }
+        if ($limit > 1000) {
+            $limit = 1000;
+        }
+
+        return $wpdb->get_results($wpdb->prepare("
+            SELECT l.*, c.name as client_name
+            FROM $logs_table l
+            LEFT JOIN $clients_table c ON l.client_id = c.id
+            ORDER BY l.created_at DESC
+            LIMIT %d
+        ", $limit));
     }
 }

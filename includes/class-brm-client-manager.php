@@ -167,67 +167,80 @@ class BRM_Client_Manager {
     
     public static function get_clients_list_html() {
         $clients = BRM_Database::get_all_clients();
-        
+
         ob_start();
         ?>
         <div class="brm-clients-list">
             <div class="brm-list-header">
-                <h3>Clients</h3>
-                <button class="button button-primary" onclick="brmShowAddClientForm()">Add New Client</button>
+                <h3><i class="fa-solid fa-users"></i> Clients</h3>
+                <button class="button button-primary brm-btn" onclick="brmShowAddClientForm()">
+                    <i class="fa-solid fa-user-plus"></i> Add New Client
+                </button>
             </div>
-            
+
             <?php if (empty($clients)): ?>
-                <p>No clients found. <a href="#" onclick="brmShowAddClientForm()">Add your first client</a>.</p>
+                <div class="brm-empty-state">
+                    <i class="fa-solid fa-user-group"></i>
+                    <p>No clients found. <a href="#" onclick="brmShowAddClientForm(); return false;">Add your first client</a> to start monitoring.</p>
+                </div>
             <?php else: ?>
-                <table class="wp-list-table widefat fixed striped">
+                <table class="wp-list-table widefat fixed striped brm-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Website</th>
-                            <th>Keywords</th>
-                            <th>Last Scanned</th>
-                            <th>Results</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th><i class="fa-solid fa-user"></i> Name</th>
+                            <th><i class="fa-solid fa-globe"></i> Website</th>
+                            <th><i class="fa-solid fa-tags"></i> Keywords</th>
+                            <th><i class="fa-solid fa-calendar-check"></i> Last Scanned</th>
+                            <th><i class="fa-solid fa-chart-simple"></i> Results</th>
+                            <th><i class="fa-solid fa-signal"></i> Status</th>
+                            <th><i class="fa-solid fa-gear"></i> Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($clients as $client): ?>
-                            <?php 
+                            <?php
                             $last_scan = BRM_Client_Manager::get_client_last_scan($client->id);
                             $result_count = BRM_Client_Manager::get_client_result_count($client->id);
                             ?>
                             <tr>
-                                <td><strong><?php echo esc_html($client->name); ?></strong></td>
+                                <td><strong><i class="fa-solid fa-building"></i> <?php echo esc_html($client->name); ?></strong></td>
                                 <td>
                                     <?php if ($client->website): ?>
-                                        <a href="<?php echo esc_url($client->website); ?>" target="_blank"><?php echo esc_html($client->website); ?></a>
+                                        <a href="<?php echo esc_url($client->website); ?>" target="_blank" rel="noopener">
+                                            <i class="fa-solid fa-external-link"></i> <?php echo esc_html($client->website); ?>
+                                        </a>
                                     <?php else: ?>
-                                        -
+                                        <span class="brm-no-data">-</span>
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo esc_html($client->keywords); ?></td>
+                                <td><i class="fa-solid fa-key"></i> <?php echo esc_html($client->keywords); ?></td>
                                 <td>
                                     <?php if ($last_scan): ?>
-                                        <?php echo date('M j, Y H:i', strtotime($last_scan)); ?>
+                                        <i class="fa-regular fa-clock"></i> <?php echo date('M j, Y H:i', strtotime($last_scan)); ?>
                                     <?php else: ?>
-                                        <span class="brm-status-never">Never</span>
+                                        <span class="brm-status-never"><i class="fa-solid fa-hourglass-start"></i> Never</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <span class="brm-result-count"><?php echo $result_count; ?></span>
+                                    <span class="brm-result-count"><i class="fa-solid fa-chart-bar"></i> <?php echo $result_count; ?></span>
                                 </td>
                                 <td>
                                     <?php if ($last_scan): ?>
-                                        <span class="brm-status-badge status-scanned">Scanned</span>
+                                        <span class="brm-status-badge status-scanned"><i class="fa-solid fa-circle-check"></i> Scanned</span>
                                     <?php else: ?>
-                                        <span class="brm-status-badge status-pending">Pending</span>
+                                        <span class="brm-status-badge status-pending"><i class="fa-solid fa-clock"></i> Pending</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <button class="button button-small" onclick="brmEditClient(<?php echo $client->id; ?>)">Edit</button>
-                                    <button class="button button-small" onclick="brmViewResults(<?php echo $client->id; ?>)">View Results</button>
-                                    <button class="button button-small button-link-delete" onclick="brmDeleteClient(<?php echo $client->id; ?>)">Delete</button>
+                                    <button class="button button-small brm-btn-small" onclick="brmEditClient(<?php echo $client->id; ?>)">
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </button>
+                                    <button class="button button-small brm-btn-small" onclick="brmViewResults(<?php echo $client->id; ?>)">
+                                        <i class="fa-solid fa-eye"></i> Results
+                                    </button>
+                                    <button class="button button-small button-link-delete brm-btn-delete" onclick="brmDeleteClient(<?php echo $client->id; ?>)">
+                                        <i class="fa-solid fa-trash"></i> Delete
+                                    </button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

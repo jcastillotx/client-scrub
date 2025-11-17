@@ -8,11 +8,30 @@ if (!defined('ABSPATH')) {
 }
 
 class BRM_AI_Service {
-    
+
     private $settings;
-    
+    private $last_request_time = 0;
+    private $min_request_interval = 1; // Minimum seconds between requests (rate limiting)
+
     public function __construct() {
         $this->settings = get_option('brm_settings', array());
+        $this->last_request_time = get_transient('brm_last_api_request') ?: 0;
+    }
+
+    /**
+     * Apply rate limiting to prevent API abuse
+     */
+    private function apply_rate_limit() {
+        $current_time = time();
+        $time_since_last = $current_time - $this->last_request_time;
+
+        if ($time_since_last < $this->min_request_interval) {
+            $wait_time = $this->min_request_interval - $time_since_last;
+            sleep($wait_time);
+        }
+
+        $this->last_request_time = time();
+        set_transient('brm_last_api_request', $this->last_request_time, 3600);
     }
     
     /**
@@ -212,7 +231,10 @@ class BRM_AI_Service {
      */
     private function make_openrouter_request($prompt) {
         $api_key = $this->settings['api_key'];
-        
+
+        // Apply rate limiting
+        $this->apply_rate_limit();
+
         $request_data = array(
             'model' => 'openai/gpt-4o-mini', // Cost-effective model
             'messages' => array(
@@ -224,7 +246,7 @@ class BRM_AI_Service {
             'max_tokens' => 4000,
             'temperature' => 0.3
         );
-        
+
         $response = wp_remote_post('https://openrouter.ai/api/v1/chat/completions', array(
             'headers' => array(
                 'Authorization' => 'Bearer ' . $api_key,
@@ -235,18 +257,25 @@ class BRM_AI_Service {
             'body' => json_encode($request_data),
             'timeout' => 60
         ));
-        
+
         if (is_wp_error($response)) {
             return $response;
         }
-        
+
+        $status_code = wp_remote_retrieve_response_code($response);
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
-        
+
+        // Handle API errors
+        if ($status_code !== 200) {
+            $error_message = isset($data['error']['message']) ? $data['error']['message'] : 'Unknown API error';
+            return new WP_Error('api_error', 'OpenRouter API error (HTTP ' . $status_code . '): ' . $error_message);
+        }
+
         if (isset($data['choices'][0]['message']['content'])) {
             return $data['choices'][0]['message']['content'];
         }
-        
+
         return new WP_Error('api_error', 'Invalid response from OpenRouter API');
     }
     
@@ -258,6 +287,9 @@ class BRM_AI_Service {
      */
     private function make_perplexity_request($prompt) {
         $api_key = $this->settings['api_key'];
+
+        // Apply rate limiting
+        $this->apply_rate_limit();
 
         // Use a supported Sonar model per current docs. 'sonar-pro' provides advanced search.
         $model = 'sonar-pro';
@@ -299,8 +331,15 @@ class BRM_AI_Service {
             return $response;
         }
 
+        $status_code = wp_remote_retrieve_response_code($response);
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
+
+        // Handle HTTP errors
+        if ($status_code !== 200) {
+            $error_message = isset($data['error']['message']) ? $data['error']['message'] : 'Unknown API error';
+            return new WP_Error('api_error', 'Perplexity API error (HTTP ' . $status_code . '): ' . $error_message);
+        }
 
         // Return model message content on success
         if (isset($data['choices'][0]['message']['content'])) {
@@ -505,31 +544,43 @@ class BRM_AI_Service {
      */
     public function get_cost_estimate($num_requests, $provider = null) {
         $provider = $provider ?: ($this->settings['ai_provider'] ?? 'openrouter');
-        
-        // Rough cost estimates (as of 2024)
+
+        // Cost estimates (as of 2025) - input + output tokens combined
+        // OpenRouter GPT-4o-mini: $0.15/1M input + $0.60/1M output
+        // Perplexity Sonar Pro: $3/1M input + $15/1M output (includes search)
         $costs = array(
             'openrouter' => array(
-                'gpt-4o-mini' => 0.00015, // per 1K tokens
-                'gpt-3.5-turbo' => 0.0005
+                'model' => 'openai/gpt-4o-mini',
+                'input_per_1k' => 0.00015,  // $0.15 per 1M = $0.00015 per 1K
+                'output_per_1k' => 0.0006,   // $0.60 per 1M = $0.0006 per 1K
+                'display_name' => 'GPT-4o-mini (via OpenRouter)'
             ),
             'perplexity' => array(
-                'llama-3.1-sonar-small' => 0.0002, // per 1K tokens
-                'llama-3.1-sonar-large' => 0.001
+                'model' => 'sonar-pro',
+                'input_per_1k' => 0.003,     // $3 per 1M = $0.003 per 1K
+                'output_per_1k' => 0.015,    // $15 per 1M = $0.015 per 1K
+                'display_name' => 'Sonar Pro (Perplexity)'
             )
         );
-        
-        $model = $provider === 'openrouter' ? 'gpt-4o-mini' : 'llama-3.1-sonar-small';
-        $cost_per_1k = $costs[$provider][$model] ?? 0.0002;
-        
-        // Estimate 2K tokens per request
-        $estimated_cost = ($num_requests * 2 * $cost_per_1k);
-        
+
+        $provider_costs = $costs[$provider] ?? $costs['openrouter'];
+
+        // Estimate tokens per request: ~500 input (prompt) + ~1500 output (results)
+        $input_tokens_per_request = 0.5;  // in thousands
+        $output_tokens_per_request = 1.5; // in thousands
+
+        $cost_per_request = ($input_tokens_per_request * $provider_costs['input_per_1k']) +
+                            ($output_tokens_per_request * $provider_costs['output_per_1k']);
+
+        $estimated_cost = $num_requests * $cost_per_request;
+
         return array(
-            'provider' => $provider,
-            'model' => $model,
-            'cost_per_request' => $cost_per_1k * 2,
+            'provider' => ucfirst($provider),
+            'model' => $provider_costs['display_name'],
+            'cost_per_request' => $cost_per_request,
             'total_estimated_cost' => $estimated_cost,
-            'currency' => 'USD'
+            'currency' => 'USD',
+            'note' => $provider === 'perplexity' ? 'Includes built-in web search' : 'Requires external search integration'
         );
     }
 }
