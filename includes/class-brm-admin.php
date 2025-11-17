@@ -341,6 +341,9 @@ class BRM_Admin {
             $settings = array(
                 'ai_provider' => sanitize_text_field($_POST['ai_provider']),
                 'api_key' => sanitize_text_field($_POST['api_key']),
+                'google_api_key' => sanitize_text_field($_POST['google_api_key'] ?? ''),
+                'google_search_engine_id' => sanitize_text_field($_POST['google_search_engine_id'] ?? ''),
+                'newsapi_key' => sanitize_text_field($_POST['newsapi_key'] ?? ''),
                 'monitoring_frequency' => sanitize_text_field($_POST['monitoring_frequency']),
                 'max_results_per_client' => intval($_POST['max_results_per_client']),
                 'notification_email' => sanitize_email($_POST['notification_email'])
@@ -358,68 +361,101 @@ class BRM_Admin {
 
         $settings = get_option('brm_settings', array());
         ?>
-        <div class="wrap">
-            <h1>Brand Reputation Monitor Settings</h1>
+        <div class="wrap brm-wrap">
+            <div class="brm-header">
+                <h1><i class="fa-solid fa-gear"></i> Brand Reputation Monitor Settings</h1>
+            </div>
 
             <form method="post">
                 <?php wp_nonce_field('brm_save_settings', 'brm_settings_nonce'); ?>
+
+                <h2><i class="fa-solid fa-magnifying-glass"></i> Primary Search APIs (Recommended)</h2>
+                <p class="description">Configure real web search APIs for accurate brand monitoring. At least one is strongly recommended.</p>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><i class="fa-brands fa-google"></i> Google Custom Search API Key</th>
+                        <td>
+                            <input type="password" name="google_api_key" value="<?php echo esc_attr($settings['google_api_key'] ?? ''); ?>" class="regular-text" autocomplete="new-password">
+                            <p class="description">Get your API key from <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> (100 free queries/day)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><i class="fa-solid fa-fingerprint"></i> Google Search Engine ID (CX)</th>
+                        <td>
+                            <input type="text" name="google_search_engine_id" value="<?php echo esc_attr($settings['google_search_engine_id'] ?? ''); ?>" class="regular-text">
+                            <p class="description">Create a custom search engine at <a href="https://programmablesearchengine.google.com/" target="_blank">Programmable Search Engine</a></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><i class="fa-solid fa-newspaper"></i> NewsAPI Key</th>
+                        <td>
+                            <input type="password" name="newsapi_key" value="<?php echo esc_attr($settings['newsapi_key'] ?? ''); ?>" class="regular-text" autocomplete="new-password">
+                            <p class="description">Get your free API key from <a href="https://newsapi.org/register" target="_blank">NewsAPI.org</a> (500 requests/day free)</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <h2><i class="fa-solid fa-robot"></i> AI Provider (Fallback & Sentiment Analysis)</h2>
+                <p class="description">AI provider for additional search results and sentiment analysis.</p>
+
                 <table class="form-table">
                     <tr>
                         <th scope="row">AI Provider</th>
                         <td>
                             <select name="ai_provider">
-                                <option value="openrouter" <?php selected($settings['ai_provider'] ?? 'openrouter', 'openrouter'); ?>>OpenRouter (Recommended)</option>
-                                <option value="perplexity" <?php selected($settings['ai_provider'] ?? '', 'perplexity'); ?>>Perplexity AI</option>
+                                <option value="perplexity" <?php selected($settings['ai_provider'] ?? 'perplexity', 'perplexity'); ?>>Perplexity AI (Recommended - has web search)</option>
+                                <option value="openrouter" <?php selected($settings['ai_provider'] ?? '', 'openrouter'); ?>>OpenRouter (No web search - analysis only)</option>
                             </select>
-                            <p class="description">OpenRouter is generally more cost-effective for this use case.</p>
+                            <p class="description"><strong>Note:</strong> Only Perplexity has real-time web search. OpenRouter/GPT models cannot search the web.</p>
                         </td>
                     </tr>
-                    
                     <tr>
-                        <th scope="row">API Key</th>
+                        <th scope="row">AI Provider API Key</th>
                         <td>
-                            <input type="password" name="api_key" value="<?php echo esc_attr($settings['api_key'] ?? ''); ?>" class="regular-text" required>
+                            <input type="password" name="api_key" value="<?php echo esc_attr($settings['api_key'] ?? ''); ?>" class="regular-text" autocomplete="new-password">
                             <p class="description">
-                                Get your API key from 
-                                <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> or 
-                                <a href="https://www.perplexity.ai/" target="_blank">Perplexity AI</a>
+                                Get your API key from
+                                <a href="https://www.perplexity.ai/settings/api" target="_blank">Perplexity AI</a> or
+                                <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
                             </p>
                         </td>
                     </tr>
-                    
+                </table>
+
+                <h2><i class="fa-solid fa-sliders"></i> Monitoring Settings</h2>
+
+                <table class="form-table">
                     <tr>
-                        <th scope="row">Monitoring Frequency</th>
+                        <th scope="row"><i class="fa-solid fa-clock"></i> Monitoring Frequency</th>
                         <td>
                             <select name="monitoring_frequency">
-                                <option value="daily" <?php selected($settings['monitoring_frequency'] ?? 'daily', 'daily'); ?>>Daily</option>
+                                <option value="daily" <?php selected($settings['monitoring_frequency'] ?? 'daily', 'daily'); ?>>Daily (Recommended)</option>
                                 <option value="twicedaily" <?php selected($settings['monitoring_frequency'] ?? '', 'twicedaily'); ?>>Twice Daily</option>
-                                <option value="hourly" <?php selected($settings['monitoring_frequency'] ?? '', 'hourly'); ?>>Hourly</option>
+                                <option value="hourly" <?php selected($settings['monitoring_frequency'] ?? '', 'hourly'); ?>>Hourly (High API usage)</option>
                             </select>
                         </td>
                     </tr>
-                    
                     <tr>
-                        <th scope="row">Max Results Per Client</th>
+                        <th scope="row"><i class="fa-solid fa-list-ol"></i> Max Results Per Client</th>
                         <td>
                             <input type="number" name="max_results_per_client" value="<?php echo esc_attr($settings['max_results_per_client'] ?? 20); ?>" min="5" max="100">
-                            <p class="description">Maximum number of results to fetch per client per scan.</p>
+                            <p class="description">Number of results to fetch per scan (5-100)</p>
                         </td>
                     </tr>
-                    
                     <tr>
-                        <th scope="row">Notification Email</th>
+                        <th scope="row"><i class="fa-solid fa-envelope"></i> Notification Email</th>
                         <td>
                             <input type="email" name="notification_email" value="<?php echo esc_attr($settings['notification_email'] ?? get_option('admin_email')); ?>" class="regular-text">
-                            <p class="description">Email address to receive daily monitoring reports.</p>
                         </td>
                     </tr>
                 </table>
-                
-                <?php submit_button(); ?>
+
+                <?php submit_button('Save Settings'); ?>
             </form>
-            
+
             <div class="brm-cost-estimate">
-                <h3><i class="fa-solid fa-calculator"></i> Cost Estimation</h3>
+                <h3><i class="fa-solid fa-calculator"></i> API Configuration & Cost Estimation</h3>
                 <?php
                 $ai_service = new BRM_AI_Service();
                 $clients = BRM_Database::get_all_clients();
@@ -428,13 +464,56 @@ class BRM_Admin {
                 $monthly_requests = $daily_requests * 30;
 
                 $cost_estimate = $ai_service->get_cost_estimate($monthly_requests);
+
+                // Check which APIs are configured
+                $google_configured = !empty($settings['google_api_key']) && !empty($settings['google_search_engine_id']);
+                $newsapi_configured = !empty($settings['newsapi_key']);
+                $ai_configured = !empty($settings['api_key']);
                 ?>
-                <p><strong><i class="fa-solid fa-dollar-sign"></i> Estimated Monthly Cost:</strong> $<?php echo number_format($cost_estimate['total_estimated_cost'], 4); ?> USD</p>
-                <p><strong><i class="fa-solid fa-server"></i> Provider:</strong> <?php echo esc_html($cost_estimate['provider']); ?></p>
-                <p><strong><i class="fa-solid fa-microchip"></i> Model:</strong> <?php echo esc_html($cost_estimate['model']); ?></p>
-                <p><strong><i class="fa-solid fa-receipt"></i> Cost per request:</strong> $<?php echo number_format($cost_estimate['cost_per_request'], 6); ?> USD</p>
+
+                <h4><i class="fa-solid fa-plug"></i> API Configuration Status</h4>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li>
+                        <?php if ($google_configured): ?>
+                            <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> Google Custom Search</span>
+                            <small>100 free queries/day, then ~$5/1000 queries</small>
+                        <?php else: ?>
+                            <span class="brm-status-badge status-pending"><i class="fa-solid fa-circle-xmark"></i> Google Custom Search</span>
+                            <small>Not configured - <strong>Recommended for accurate results</strong></small>
+                        <?php endif; ?>
+                    </li>
+                    <li style="margin-top: 8px;">
+                        <?php if ($newsapi_configured): ?>
+                            <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> NewsAPI</span>
+                            <small>Free tier: 500 req/day</small>
+                        <?php else: ?>
+                            <span class="brm-status-badge status-pending"><i class="fa-solid fa-circle-xmark"></i> NewsAPI</span>
+                            <small>Not configured - <strong>Great for news monitoring</strong></small>
+                        <?php endif; ?>
+                    </li>
+                    <li style="margin-top: 8px;">
+                        <?php if ($ai_configured): ?>
+                            <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> AI Provider (<?php echo esc_html(ucfirst($settings['ai_provider'] ?? 'Not Set')); ?>)</span>
+                        <?php else: ?>
+                            <span class="brm-status-badge status-pending"><i class="fa-solid fa-circle-xmark"></i> AI Provider</span>
+                            <small>Not configured</small>
+                        <?php endif; ?>
+                    </li>
+                </ul>
+
+                <?php if (!$google_configured && !$newsapi_configured): ?>
+                    <div class="notice notice-warning inline" style="margin: 15px 0;">
+                        <p><strong><i class="fa-solid fa-triangle-exclamation"></i> Warning:</strong> No real search APIs configured. Results will rely on AI-only search which may not return current web results. <strong>Configure Google Custom Search or NewsAPI for accurate brand monitoring.</strong></p>
+                    </div>
+                <?php endif; ?>
+
+                <h4><i class="fa-solid fa-dollar-sign"></i> AI Provider Cost Estimate</h4>
+                <p><strong>Estimated Monthly Cost:</strong> $<?php echo number_format($cost_estimate['total_estimated_cost'], 4); ?> USD</p>
+                <p><strong>Provider:</strong> <?php echo esc_html($cost_estimate['provider']); ?></p>
+                <p><strong>Model:</strong> <?php echo esc_html($cost_estimate['model']); ?></p>
+                <p><strong>Cost per request:</strong> $<?php echo number_format($cost_estimate['cost_per_request'], 6); ?> USD</p>
                 <?php if (!empty($cost_estimate['note'])): ?>
-                    <p><strong><i class="fa-solid fa-circle-info"></i> Note:</strong> <?php echo esc_html($cost_estimate['note']); ?></p>
+                    <p><strong>Note:</strong> <?php echo esc_html($cost_estimate['note']); ?></p>
                 <?php endif; ?>
                 <p class="description" style="margin-top: 12px;">
                     <i class="fa-solid fa-info-circle"></i>

@@ -33,6 +33,323 @@ class BRM_AI_Service {
         $this->last_request_time = time();
         set_transient('brm_last_api_request', $this->last_request_time, 3600);
     }
+
+    /**
+     * Search using Google Custom Search API (Real web results)
+     */
+    public function search_with_google($keywords, $client_name, $max_results = 10) {
+        $api_key = $this->settings['google_api_key'] ?? '';
+        $search_engine_id = $this->settings['google_search_engine_id'] ?? '';
+
+        if (empty($api_key) || empty($search_engine_id)) {
+            return array('error' => 'Google Custom Search API not configured');
+        }
+
+        $search_query = $this->build_search_query($keywords, $client_name);
+        $results = array();
+
+        // Google CSE returns max 10 results per request
+        $num_requests = ceil($max_results / 10);
+        $total_fetched = 0;
+
+        for ($i = 0; $i < $num_requests && $total_fetched < $max_results; $i++) {
+            $start_index = ($i * 10) + 1;
+
+            $url = add_query_arg(array(
+                'key' => $api_key,
+                'cx' => $search_engine_id,
+                'q' => $search_query,
+                'num' => min(10, $max_results - $total_fetched),
+                'start' => $start_index,
+                'dateRestrict' => 'm1', // Last month
+                'safe' => 'active'
+            ), 'https://www.googleapis.com/customsearch/v1');
+
+            $this->apply_rate_limit();
+
+            $response = wp_remote_get($url, array('timeout' => 30));
+
+            if (is_wp_error($response)) {
+                BRM_Database::log_monitoring_action(null, 'google_search_error', $response->get_error_message(), 'error');
+                continue;
+            }
+
+            $status_code = wp_remote_retrieve_response_code($response);
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+
+            if ($status_code !== 200) {
+                $error_msg = isset($data['error']['message']) ? $data['error']['message'] : 'Unknown error';
+                BRM_Database::log_monitoring_action(null, 'google_search_error', "HTTP $status_code: $error_msg", 'error');
+                continue;
+            }
+
+            if (isset($data['items']) && is_array($data['items'])) {
+                foreach ($data['items'] as $item) {
+                    $url = $this->normalize_url($item['link'] ?? '');
+                    if (empty($url)) continue;
+
+                    $results[] = array(
+                        'title' => $item['title'] ?? 'Untitled',
+                        'url' => $url,
+                        'content' => $item['snippet'] ?? '',
+                        'source' => parse_url($url, PHP_URL_HOST) ?: '',
+                        'type' => $this->classify_content_type($url, $item['snippet'] ?? ''),
+                        'sentiment' => 'neutral', // Will be analyzed separately
+                        'relevance_score' => 0.8 // Google results are highly relevant
+                    );
+                    $total_fetched++;
+
+                    if ($total_fetched >= $max_results) break;
+                }
+            }
+        }
+
+        BRM_Database::log_monitoring_action(null, 'google_search_completed', "Found $total_fetched results from Google", 'success');
+
+        return array('results' => $results);
+    }
+
+    /**
+     * Search using NewsAPI (Real news articles)
+     */
+    public function search_with_newsapi($keywords, $client_name, $max_results = 10) {
+        $api_key = $this->settings['newsapi_key'] ?? '';
+
+        if (empty($api_key)) {
+            return array('error' => 'NewsAPI key not configured');
+        }
+
+        $search_query = $client_name . ' ' . str_replace(',', ' OR ', $keywords);
+
+        $url = add_query_arg(array(
+            'apiKey' => $api_key,
+            'q' => $search_query,
+            'language' => 'en',
+            'sortBy' => 'relevancy',
+            'pageSize' => min($max_results, 100),
+            'from' => date('Y-m-d', strtotime('-30 days'))
+        ), 'https://newsapi.org/v2/everything');
+
+        $this->apply_rate_limit();
+
+        $response = wp_remote_get($url, array('timeout' => 30));
+
+        if (is_wp_error($response)) {
+            BRM_Database::log_monitoring_action(null, 'newsapi_error', $response->get_error_message(), 'error');
+            return array('error' => $response->get_error_message());
+        }
+
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        if ($status_code !== 200 || ($data['status'] ?? '') !== 'ok') {
+            $error_msg = $data['message'] ?? 'Unknown NewsAPI error';
+            BRM_Database::log_monitoring_action(null, 'newsapi_error', $error_msg, 'error');
+            return array('error' => $error_msg);
+        }
+
+        $results = array();
+        if (isset($data['articles']) && is_array($data['articles'])) {
+            foreach ($data['articles'] as $article) {
+                $url = $this->normalize_url($article['url'] ?? '');
+                if (empty($url)) continue;
+
+                $results[] = array(
+                    'title' => $article['title'] ?? 'Untitled',
+                    'url' => $url,
+                    'content' => $article['description'] ?? '',
+                    'source' => $article['source']['name'] ?? parse_url($url, PHP_URL_HOST),
+                    'type' => 'news',
+                    'sentiment' => 'neutral', // Will be analyzed separately
+                    'relevance_score' => 0.85 // News articles are highly relevant
+                );
+
+                if (count($results) >= $max_results) break;
+            }
+        }
+
+        BRM_Database::log_monitoring_action(null, 'newsapi_completed', 'Found ' . count($results) . ' news articles', 'success');
+
+        return array('results' => $results);
+    }
+
+    /**
+     * Classify content type based on URL and content
+     */
+    private function classify_content_type($url, $content) {
+        $url_lower = strtolower($url);
+        $content_lower = strtolower($content);
+
+        // Check URL patterns
+        if (preg_match('/(news|press|article|story)/', $url_lower)) {
+            return 'news';
+        }
+        if (preg_match('/(blog|post|journal)/', $url_lower)) {
+            return 'blog';
+        }
+        if (preg_match('/(forum|discuss|thread|community)/', $url_lower)) {
+            return 'forum';
+        }
+        if (preg_match('/(twitter|facebook|linkedin|instagram|tiktok)/', $url_lower)) {
+            return 'social';
+        }
+
+        // Check domain patterns
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host) {
+            if (preg_match('/(news|press|times|post|journal|herald|tribune)/', $host)) {
+                return 'news';
+            }
+            if (preg_match('/(blog|medium|wordpress|blogger|substack)/', $host)) {
+                return 'blog';
+            }
+            if (preg_match('/(reddit|quora|stackoverflow|forum)/', $host)) {
+                return 'forum';
+            }
+        }
+
+        return 'article'; // Default type
+    }
+
+    /**
+     * Perform hybrid search using multiple sources
+     */
+    public function search_mentions_hybrid($keywords, $client_name, $max_results = 20) {
+        $all_results = array();
+        $errors = array();
+
+        // Calculate results per source
+        $results_per_source = ceil($max_results / 3);
+
+        // 1. Try Google Custom Search (if configured)
+        if (!empty($this->settings['google_api_key']) && !empty($this->settings['google_search_engine_id'])) {
+            BRM_Database::log_monitoring_action(null, 'hybrid_search', 'Querying Google Custom Search', 'info');
+            $google_results = $this->search_with_google($keywords, $client_name, $results_per_source);
+            if (isset($google_results['results'])) {
+                $all_results = array_merge($all_results, $google_results['results']);
+            } else {
+                $errors[] = 'Google: ' . ($google_results['error'] ?? 'Unknown error');
+            }
+        }
+
+        // 2. Try NewsAPI (if configured)
+        if (!empty($this->settings['newsapi_key'])) {
+            BRM_Database::log_monitoring_action(null, 'hybrid_search', 'Querying NewsAPI', 'info');
+            $news_results = $this->search_with_newsapi($keywords, $client_name, $results_per_source);
+            if (isset($news_results['results'])) {
+                $all_results = array_merge($all_results, $news_results['results']);
+            } else {
+                $errors[] = 'NewsAPI: ' . ($news_results['error'] ?? 'Unknown error');
+            }
+        }
+
+        // 3. Use AI-based search as fallback or supplement
+        $ai_provider = $this->settings['ai_provider'] ?? 'openrouter';
+        $remaining_slots = $max_results - count($all_results);
+
+        if ($remaining_slots > 0 && !empty($this->settings['api_key'])) {
+            BRM_Database::log_monitoring_action(null, 'hybrid_search', "Querying $ai_provider for additional results", 'info');
+
+            // Only use Perplexity for AI search since it has web access
+            if ($ai_provider === 'perplexity') {
+                $ai_results = $this->search_with_perplexity($keywords, $client_name, $remaining_slots);
+                if (isset($ai_results['results'])) {
+                    $all_results = array_merge($all_results, $ai_results['results']);
+                } else {
+                    $errors[] = 'Perplexity: ' . ($ai_results['error'] ?? 'Unknown error');
+                }
+            }
+        }
+
+        // Deduplicate results by canonical URL
+        $unique_results = array();
+        $seen_urls = array();
+
+        foreach ($all_results as $result) {
+            $canonical = $this->canonicalize_url($result['url']);
+            if (!in_array($canonical, $seen_urls)) {
+                $seen_urls[] = $canonical;
+                $unique_results[] = $result;
+            }
+        }
+
+        // Analyze sentiment for results that need it
+        $unique_results = $this->batch_analyze_sentiment($unique_results);
+
+        // Trim to max_results
+        $unique_results = array_slice($unique_results, 0, $max_results);
+
+        $log_message = 'Hybrid search completed. Found ' . count($unique_results) . ' unique results.';
+        if (!empty($errors)) {
+            $log_message .= ' Errors: ' . implode('; ', $errors);
+        }
+        BRM_Database::log_monitoring_action(null, 'hybrid_search_completed', $log_message, 'success');
+
+        return array('results' => $unique_results, 'errors' => $errors);
+    }
+
+    /**
+     * Batch analyze sentiment for results
+     */
+    private function batch_analyze_sentiment($results) {
+        // Only analyze if AI provider is configured
+        if (empty($this->settings['api_key'])) {
+            return $results;
+        }
+
+        foreach ($results as &$result) {
+            if ($result['sentiment'] === 'neutral' && !empty($result['content'])) {
+                // Quick sentiment classification based on content
+                $content = strtolower($result['content']);
+
+                // Simple keyword-based sentiment (fast, no API call needed)
+                $positive_words = array('great', 'excellent', 'amazing', 'love', 'best', 'wonderful', 'fantastic', 'positive', 'success', 'award', 'win', 'innovative', 'growth');
+                $negative_words = array('bad', 'terrible', 'worst', 'hate', 'fail', 'problem', 'issue', 'lawsuit', 'scandal', 'fraud', 'crisis', 'negative', 'loss', 'decline');
+
+                $positive_score = 0;
+                $negative_score = 0;
+
+                foreach ($positive_words as $word) {
+                    if (strpos($content, $word) !== false) {
+                        $positive_score++;
+                    }
+                }
+
+                foreach ($negative_words as $word) {
+                    if (strpos($content, $word) !== false) {
+                        $negative_score++;
+                    }
+                }
+
+                if ($positive_score > $negative_score) {
+                    $result['sentiment'] = 'positive';
+                } elseif ($negative_score > $positive_score) {
+                    $result['sentiment'] = 'negative';
+                }
+                // Otherwise stays neutral
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Helper to canonicalize URL for deduplication
+     */
+    private function canonicalize_url($url) {
+        $parts = parse_url($url);
+        if (!$parts || empty($parts['host'])) {
+            return $url;
+        }
+        $host = strtolower($parts['host']);
+        $path = isset($parts['path']) ? rtrim($parts['path'], '/') : '';
+        if ($path === '') {
+            $path = '/';
+        }
+        return $host . $path;
+    }
     
     /**
      * Normalize URL (ensure scheme and trim)

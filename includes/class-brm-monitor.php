@@ -85,8 +85,8 @@ class BRM_Monitor {
         if (empty($client->keywords)) {
             throw new Exception('No keywords configured for client');
         }
-        
-        // Get AI search results
+
+        // Get settings
         $settings = get_option('brm_settings', array());
         $max_results = isset($settings['max_results_per_client']) ? (int) $settings['max_results_per_client'] : 20;
         if ($max_results < 1) {
@@ -94,13 +94,27 @@ class BRM_Monitor {
         } elseif ($max_results > 100) {
             $max_results = 100; // cap to prevent excessive API usage
         }
-        $search_results = $this->ai_service->search_mentions(
-            $client->keywords,
-            $client->name,
-            $max_results
-        );
-        
-        if (isset($search_results['error'])) {
+
+        // Use hybrid search if any real search APIs are configured
+        $use_hybrid = !empty($settings['google_api_key']) || !empty($settings['newsapi_key']);
+
+        if ($use_hybrid) {
+            BRM_Database::log_monitoring_action($client->id, 'scan_method', 'Using hybrid search (Google/NewsAPI + AI)', 'info');
+            $search_results = $this->ai_service->search_mentions_hybrid(
+                $client->keywords,
+                $client->name,
+                $max_results
+            );
+        } else {
+            BRM_Database::log_monitoring_action($client->id, 'scan_method', 'Using AI-only search (configure Google/NewsAPI for better results)', 'info');
+            $search_results = $this->ai_service->search_mentions(
+                $client->keywords,
+                $client->name,
+                $max_results
+            );
+        }
+
+        if (isset($search_results['error']) && !isset($search_results['results'])) {
             throw new Exception($search_results['error']);
         }
         
