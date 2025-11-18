@@ -63,11 +63,20 @@ class BRM_Admin {
         if (strpos($hook, 'brand-reputation-monitor') === false && strpos($hook, 'brm-') === false) {
             return;
         }
-        
+
         wp_enqueue_script('jquery');
+
+        // Load Font Awesome 6 for modern flat icons
+        wp_enqueue_style(
+            'font-awesome',
+            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
+            array(),
+            '6.5.1'
+        );
+
         wp_enqueue_script('brm-admin', BRM_PLUGIN_URL . 'assets/admin.js', array('jquery'), BRM_VERSION, true);
-        wp_enqueue_style('brm-admin', BRM_PLUGIN_URL . 'assets/admin.css', array(), BRM_VERSION);
-        
+        wp_enqueue_style('brm-admin', BRM_PLUGIN_URL . 'assets/admin.css', array('font-awesome'), BRM_VERSION);
+
         wp_localize_script('brm-admin', 'brm_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('brm_nonce')
@@ -76,45 +85,50 @@ class BRM_Admin {
     
     public function admin_page() {
         ?>
-        <div class="wrap">
-            <h1>Brand Reputation Monitor</h1>
-            
+        <div class="wrap brm-wrap">
+            <div class="brm-header">
+                <h1><i class="fa-solid fa-shield-halved"></i> Brand Reputation Monitor</h1>
+                <p class="brm-subtitle">Monitor and analyze your clients' online presence</p>
+            </div>
+
             <div class="brm-dashboard">
                 <div class="brm-health-status">
                     <?php $this->display_health_status(); ?>
                 </div>
-                
+
                 <div class="brm-stats-grid">
                     <?php $this->display_stats(); ?>
                 </div>
-                
+
                 <!-- Workflow Steps -->
                 <div class="brm-workflow">
                     <div class="brm-workflow-step active" id="step-1">
-                        <div class="step-number">1</div>
+                        <div class="step-icon"><i class="fa-solid fa-user-plus"></i></div>
                         <div class="step-content">
                             <h3>Add Clients</h3>
                             <p>Add your clients with their monitoring keywords</p>
-                            <button class="button button-primary" onclick="brmShowAddClientForm()">Add New Client</button>
+                            <button class="button button-primary brm-btn" onclick="brmShowAddClientForm()">
+                                <i class="fa-solid fa-plus"></i> Add New Client
+                            </button>
                         </div>
                     </div>
-                    
+
                     <div class="brm-workflow-step" id="step-2">
-                        <div class="step-number">2</div>
+                        <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
                         <div class="step-content">
                             <h3>Review Clients</h3>
                             <p>Review your client list and prepare for monitoring</p>
                         </div>
                     </div>
-                    
+
                     <div class="brm-workflow-step" id="step-3">
-                        <div class="step-number">3</div>
+                        <div class="step-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
                         <div class="step-content">
                             <h3>Start Web Scraping</h3>
                             <p>Begin monitoring all clients for brand mentions</p>
-                            <button class="button button-primary brm-start-scraping" onclick="brmStartWebScraping()" id="start-scraping-btn">
-                                <span class="btn-text">Start Web Scraping</span>
-                                <span class="btn-loading" style="display: none;">Scraping...</span>
+                            <button class="button button-primary brm-btn brm-start-scraping" onclick="brmStartWebScraping()" id="start-scraping-btn">
+                                <span class="btn-text"><i class="fa-solid fa-play"></i> Start Web Scraping</span>
+                                <span class="btn-loading" style="display: none;"><i class="fa-solid fa-spinner fa-spin"></i> Scraping...</span>
                             </button>
                         </div>
                     </div>
@@ -209,55 +223,64 @@ class BRM_Admin {
         $type_filter = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : null;
         $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : 'active'; // active | deleted
         $clients = BRM_Database::get_all_clients();
-        
+
         ?>
-        <div class="wrap">
-            <h1>Monitoring Results</h1>
-            
+        <div class="wrap brm-wrap">
+            <div class="brm-header">
+                <h1><i class="fa-solid fa-chart-line"></i> Monitoring Results</h1>
+            </div>
+
             <?php if ($client_id): ?>
                 <?php $client = BRM_Database::get_client($client_id); ?>
-                <h2>Results for: <?php echo esc_html($client->name); ?></h2>
-                <button class="button button-primary" id="brm-manual-scan-btn" onclick="brmManualScan(<?php echo $client_id; ?>)">Run Manual Scan</button>
+                <h2><i class="fa-solid fa-user"></i> Results for: <?php echo esc_html($client->name); ?></h2>
+                <button class="button button-primary brm-btn" id="brm-manual-scan-btn" onclick="brmManualScan(<?php echo $client_id; ?>)">
+                    <i class="fa-solid fa-magnifying-glass"></i> Run Manual Scan
+                </button>
             <?php endif; ?>
-            
+
             <div class="brm-filters">
                 <form method="get">
                     <input type="hidden" name="page" value="brm-results">
-                    
-                    <select name="client_id">
-                        <option value="">All Clients</option>
-                        <?php foreach ($clients as $client): ?>
-                            <option value="<?php echo $client->id; ?>" <?php selected($client_id, $client->id); ?>>
-                                <?php echo esc_html($client->name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    
-                    <select name="type">
-                        <option value="">All Types</option>
-                        <option value="article" <?php selected($type_filter, 'article'); ?>>Articles</option>
-                        <option value="news" <?php selected($type_filter, 'news'); ?>>News</option>
-                        <option value="social" <?php selected($type_filter, 'social'); ?>>Social Media</option>
-                        <option value="blog" <?php selected($type_filter, 'blog'); ?>>Blog Posts</option>
-                        <option value="forum" <?php selected($type_filter, 'forum'); ?>>Forum Posts</option>
-                    </select>
 
-                    <select name="status">
-                        <option value="active" <?php selected($status_filter, 'active'); ?>>Active</option>
-                        <option value="deleted" <?php selected($status_filter, 'deleted'); ?>>Deleted</option>
-                    </select>
-                    
-                    <input type="submit" class="button" value="Filter">
+                    <div class="brm-filter-group">
+                        <label><i class="fa-solid fa-filter"></i> Filters</label>
+                        <select name="client_id">
+                            <option value="">All Clients</option>
+                            <?php foreach ($clients as $client): ?>
+                                <option value="<?php echo $client->id; ?>" <?php selected($client_id, $client->id); ?>>
+                                    <?php echo esc_html($client->name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <select name="type">
+                            <option value="">All Types</option>
+                            <option value="article" <?php selected($type_filter, 'article'); ?>>Articles</option>
+                            <option value="news" <?php selected($type_filter, 'news'); ?>>News</option>
+                            <option value="social" <?php selected($type_filter, 'social'); ?>>Social Media</option>
+                            <option value="blog" <?php selected($type_filter, 'blog'); ?>>Blog Posts</option>
+                            <option value="forum" <?php selected($type_filter, 'forum'); ?>>Forum Posts</option>
+                        </select>
+
+                        <select name="status">
+                            <option value="active" <?php selected($status_filter, 'active'); ?>>Active</option>
+                            <option value="deleted" <?php selected($status_filter, 'deleted'); ?>>Deleted</option>
+                        </select>
+
+                        <button type="submit" class="button brm-btn-secondary">
+                            <i class="fa-solid fa-magnifying-glass"></i> Filter
+                        </button>
+                    </div>
                 </form>
             </div>
-            
-            <div class="brm-validation-actions" style="margin: 10px 0 20px;">
-                <button class="button button-secondary" onclick="brmValidateResults(<?php echo $client_id ? $client_id : 0; ?>)">
-                    Validate Results<?php echo $client_id ? ' (This Client)' : ''; ?>
+
+            <div class="brm-validation-actions">
+                <button class="button button-secondary brm-btn-secondary" onclick="brmValidateResults(<?php echo $client_id ? $client_id : 0; ?>)">
+                    <i class="fa-solid fa-check-double"></i> Validate Results<?php echo $client_id ? ' (This Client)' : ''; ?>
                 </button>
                 <small class="description">Checks saved URLs and deletes invalid or fake ones.</small>
-                <button class="button" style="margin-left:10px" onclick="brmPurgeDeleted(<?php echo $client_id ? $client_id : 0; ?>)">
-                    Purge Deleted<?php echo $client_id ? ' (This Client)' : ' (All Clients)'; ?>
+                <button class="button brm-btn-secondary" style="margin-left:10px" onclick="brmPurgeDeleted(<?php echo $client_id ? $client_id : 0; ?>)">
+                    <i class="fa-solid fa-trash-can"></i> Purge Deleted<?php echo $client_id ? ' (This Client)' : ' (All Clients)'; ?>
                 </button>
                 <small class="description">Permanently removes deleted results from the database.</small>
             </div>
@@ -305,15 +328,27 @@ class BRM_Admin {
     }
     
     public function settings_page() {
-        if (isset($_POST['submit'])) {
+        if (isset($_POST['submit']) && isset($_POST['brm_settings_nonce'])) {
+            // Verify nonce for CSRF protection
+            if (!wp_verify_nonce($_POST['brm_settings_nonce'], 'brm_save_settings')) {
+                wp_die('Security check failed. Please try again.');
+            }
+
+            if (!current_user_can('manage_options')) {
+                wp_die('Unauthorized access');
+            }
+
             $settings = array(
                 'ai_provider' => sanitize_text_field($_POST['ai_provider']),
                 'api_key' => sanitize_text_field($_POST['api_key']),
+                'google_api_key' => sanitize_text_field($_POST['google_api_key'] ?? ''),
+                'google_search_engine_id' => sanitize_text_field($_POST['google_search_engine_id'] ?? ''),
+                'newsapi_key' => sanitize_text_field($_POST['newsapi_key'] ?? ''),
                 'monitoring_frequency' => sanitize_text_field($_POST['monitoring_frequency']),
                 'max_results_per_client' => intval($_POST['max_results_per_client']),
                 'notification_email' => sanitize_email($_POST['notification_email'])
             );
-            
+
             update_option('brm_settings', $settings);
 
             // Reschedule cron based on monitoring frequency
@@ -323,83 +358,167 @@ class BRM_Admin {
 
             echo '<div class="notice notice-success"><p>Settings saved successfully! Monitoring schedule updated.</p></div>';
         }
-        
+
         $settings = get_option('brm_settings', array());
         ?>
-        <div class="wrap">
-            <h1>Brand Reputation Monitor Settings</h1>
-            
+        <div class="wrap brm-wrap">
+            <div class="brm-header">
+                <h1><i class="fa-solid fa-gear"></i> Brand Reputation Monitor Settings</h1>
+            </div>
+
             <form method="post">
+                <?php wp_nonce_field('brm_save_settings', 'brm_settings_nonce'); ?>
+
+                <h2><i class="fa-solid fa-magnifying-glass"></i> Primary Search APIs (Recommended)</h2>
+                <p class="description">Configure real web search APIs for accurate brand monitoring. At least one is strongly recommended.</p>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><i class="fa-brands fa-google"></i> Google Custom Search API Key</th>
+                        <td>
+                            <input type="password" name="google_api_key" value="<?php echo esc_attr($settings['google_api_key'] ?? ''); ?>" class="regular-text" autocomplete="new-password">
+                            <p class="description">Get your API key from <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> (100 free queries/day)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><i class="fa-solid fa-fingerprint"></i> Google Search Engine ID (CX)</th>
+                        <td>
+                            <input type="text" name="google_search_engine_id" value="<?php echo esc_attr($settings['google_search_engine_id'] ?? ''); ?>" class="regular-text">
+                            <p class="description">Create a custom search engine at <a href="https://programmablesearchengine.google.com/" target="_blank">Programmable Search Engine</a></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><i class="fa-solid fa-newspaper"></i> NewsAPI Key</th>
+                        <td>
+                            <input type="password" name="newsapi_key" value="<?php echo esc_attr($settings['newsapi_key'] ?? ''); ?>" class="regular-text" autocomplete="new-password">
+                            <p class="description">Get your free API key from <a href="https://newsapi.org/register" target="_blank">NewsAPI.org</a> (500 requests/day free)</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <h2><i class="fa-solid fa-robot"></i> AI Provider (Fallback & Sentiment Analysis)</h2>
+                <p class="description">AI provider for additional search results and sentiment analysis.</p>
+
                 <table class="form-table">
                     <tr>
                         <th scope="row">AI Provider</th>
                         <td>
                             <select name="ai_provider">
-                                <option value="openrouter" <?php selected($settings['ai_provider'] ?? 'openrouter', 'openrouter'); ?>>OpenRouter (Recommended)</option>
-                                <option value="perplexity" <?php selected($settings['ai_provider'] ?? '', 'perplexity'); ?>>Perplexity AI</option>
+                                <option value="perplexity" <?php selected($settings['ai_provider'] ?? 'perplexity', 'perplexity'); ?>>Perplexity AI (Recommended - has web search)</option>
+                                <option value="openrouter" <?php selected($settings['ai_provider'] ?? '', 'openrouter'); ?>>OpenRouter (No web search - analysis only)</option>
                             </select>
-                            <p class="description">OpenRouter is generally more cost-effective for this use case.</p>
+                            <p class="description"><strong>Note:</strong> Only Perplexity has real-time web search. OpenRouter/GPT models cannot search the web.</p>
                         </td>
                     </tr>
-                    
                     <tr>
-                        <th scope="row">API Key</th>
+                        <th scope="row">AI Provider API Key</th>
                         <td>
-                            <input type="password" name="api_key" value="<?php echo esc_attr($settings['api_key'] ?? ''); ?>" class="regular-text" required>
+                            <input type="password" name="api_key" value="<?php echo esc_attr($settings['api_key'] ?? ''); ?>" class="regular-text" autocomplete="new-password">
                             <p class="description">
-                                Get your API key from 
-                                <a href="https://openrouter.ai/" target="_blank">OpenRouter</a> or 
-                                <a href="https://www.perplexity.ai/" target="_blank">Perplexity AI</a>
+                                Get your API key from
+                                <a href="https://www.perplexity.ai/settings/api" target="_blank">Perplexity AI</a> or
+                                <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
                             </p>
                         </td>
                     </tr>
-                    
+                </table>
+
+                <h2><i class="fa-solid fa-sliders"></i> Monitoring Settings</h2>
+
+                <table class="form-table">
                     <tr>
-                        <th scope="row">Monitoring Frequency</th>
+                        <th scope="row"><i class="fa-solid fa-clock"></i> Monitoring Frequency</th>
                         <td>
                             <select name="monitoring_frequency">
-                                <option value="daily" <?php selected($settings['monitoring_frequency'] ?? 'daily', 'daily'); ?>>Daily</option>
+                                <option value="daily" <?php selected($settings['monitoring_frequency'] ?? 'daily', 'daily'); ?>>Daily (Recommended)</option>
                                 <option value="twicedaily" <?php selected($settings['monitoring_frequency'] ?? '', 'twicedaily'); ?>>Twice Daily</option>
-                                <option value="hourly" <?php selected($settings['monitoring_frequency'] ?? '', 'hourly'); ?>>Hourly</option>
+                                <option value="hourly" <?php selected($settings['monitoring_frequency'] ?? '', 'hourly'); ?>>Hourly (High API usage)</option>
                             </select>
                         </td>
                     </tr>
-                    
                     <tr>
-                        <th scope="row">Max Results Per Client</th>
+                        <th scope="row"><i class="fa-solid fa-list-ol"></i> Max Results Per Client</th>
                         <td>
                             <input type="number" name="max_results_per_client" value="<?php echo esc_attr($settings['max_results_per_client'] ?? 20); ?>" min="5" max="100">
-                            <p class="description">Maximum number of results to fetch per client per scan.</p>
+                            <p class="description">Number of results to fetch per scan (5-100)</p>
                         </td>
                     </tr>
-                    
                     <tr>
-                        <th scope="row">Notification Email</th>
+                        <th scope="row"><i class="fa-solid fa-envelope"></i> Notification Email</th>
                         <td>
                             <input type="email" name="notification_email" value="<?php echo esc_attr($settings['notification_email'] ?? get_option('admin_email')); ?>" class="regular-text">
-                            <p class="description">Email address to receive daily monitoring reports.</p>
                         </td>
                     </tr>
                 </table>
-                
-                <?php submit_button(); ?>
+
+                <?php submit_button('Save Settings'); ?>
             </form>
-            
+
             <div class="brm-cost-estimate">
-                <h3>Cost Estimation</h3>
+                <h3><i class="fa-solid fa-calculator"></i> API Configuration & Cost Estimation</h3>
                 <?php
                 $ai_service = new BRM_AI_Service();
                 $clients = BRM_Database::get_all_clients();
                 $num_clients = count($clients);
                 $daily_requests = $num_clients;
                 $monthly_requests = $daily_requests * 30;
-                
+
                 $cost_estimate = $ai_service->get_cost_estimate($monthly_requests);
+
+                // Check which APIs are configured
+                $google_configured = !empty($settings['google_api_key']) && !empty($settings['google_search_engine_id']);
+                $newsapi_configured = !empty($settings['newsapi_key']);
+                $ai_configured = !empty($settings['api_key']);
                 ?>
+
+                <h4><i class="fa-solid fa-plug"></i> API Configuration Status</h4>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li>
+                        <?php if ($google_configured): ?>
+                            <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> Google Custom Search</span>
+                            <small>100 free queries/day, then ~$5/1000 queries</small>
+                        <?php else: ?>
+                            <span class="brm-status-badge status-pending"><i class="fa-solid fa-circle-xmark"></i> Google Custom Search</span>
+                            <small>Not configured - <strong>Recommended for accurate results</strong></small>
+                        <?php endif; ?>
+                    </li>
+                    <li style="margin-top: 8px;">
+                        <?php if ($newsapi_configured): ?>
+                            <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> NewsAPI</span>
+                            <small>Free tier: 500 req/day</small>
+                        <?php else: ?>
+                            <span class="brm-status-badge status-pending"><i class="fa-solid fa-circle-xmark"></i> NewsAPI</span>
+                            <small>Not configured - <strong>Great for news monitoring</strong></small>
+                        <?php endif; ?>
+                    </li>
+                    <li style="margin-top: 8px;">
+                        <?php if ($ai_configured): ?>
+                            <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> AI Provider (<?php echo esc_html(ucfirst($settings['ai_provider'] ?? 'Not Set')); ?>)</span>
+                        <?php else: ?>
+                            <span class="brm-status-badge status-pending"><i class="fa-solid fa-circle-xmark"></i> AI Provider</span>
+                            <small>Not configured</small>
+                        <?php endif; ?>
+                    </li>
+                </ul>
+
+                <?php if (!$google_configured && !$newsapi_configured): ?>
+                    <div class="notice notice-warning inline" style="margin: 15px 0;">
+                        <p><strong><i class="fa-solid fa-triangle-exclamation"></i> Warning:</strong> No real search APIs configured. Results will rely on AI-only search which may not return current web results. <strong>Configure Google Custom Search or NewsAPI for accurate brand monitoring.</strong></p>
+                    </div>
+                <?php endif; ?>
+
+                <h4><i class="fa-solid fa-dollar-sign"></i> AI Provider Cost Estimate</h4>
                 <p><strong>Estimated Monthly Cost:</strong> $<?php echo number_format($cost_estimate['total_estimated_cost'], 4); ?> USD</p>
-                <p><strong>Provider:</strong> <?php echo ucfirst($cost_estimate['provider']); ?></p>
-                <p><strong>Model:</strong> <?php echo $cost_estimate['model']; ?></p>
-                <p><strong>Cost per request:</strong> $<?php echo number_format($cost_estimate['cost_per_request'], 4); ?> USD</p>
+                <p><strong>Provider:</strong> <?php echo esc_html($cost_estimate['provider']); ?></p>
+                <p><strong>Model:</strong> <?php echo esc_html($cost_estimate['model']); ?></p>
+                <p><strong>Cost per request:</strong> $<?php echo number_format($cost_estimate['cost_per_request'], 6); ?> USD</p>
+                <?php if (!empty($cost_estimate['note'])): ?>
+                    <p><strong>Note:</strong> <?php echo esc_html($cost_estimate['note']); ?></p>
+                <?php endif; ?>
+                <p class="description" style="margin-top: 12px;">
+                    <i class="fa-solid fa-info-circle"></i>
+                    Based on <?php echo $num_clients; ?> client(s), <?php echo $daily_requests; ?> daily request(s), and <?php echo $monthly_requests; ?> monthly request(s).
+                </p>
             </div>
         </div>
         <?php
@@ -409,29 +528,50 @@ class BRM_Admin {
         $stats = BRM_Monitor::get_monitoring_stats();
         ?>
         <div class="brm-stat-card">
-            <h3>Total Clients</h3>
-            <div class="brm-stat-number" data-key="total_clients"><?php echo $stats['total_clients']; ?></div>
+            <div class="brm-stat-icon"><i class="fa-solid fa-users"></i></div>
+            <div class="brm-stat-content">
+                <h3>Total Clients</h3>
+                <div class="brm-stat-number" data-key="total_clients"><?php echo $stats['total_clients']; ?></div>
+            </div>
         </div>
-        
+
         <div class="brm-stat-card">
-            <h3>Total Results</h3>
-            <div class="brm-stat-number" data-key="total_results"><?php echo $stats['total_results']; ?></div>
+            <div class="brm-stat-icon"><i class="fa-solid fa-chart-bar"></i></div>
+            <div class="brm-stat-content">
+                <h3>Total Results</h3>
+                <div class="brm-stat-number" data-key="total_results"><?php echo $stats['total_results']; ?></div>
+            </div>
         </div>
-        
+
         <div class="brm-stat-card">
-            <h3>Recent Results (7 days)</h3>
-            <div class="brm-stat-number" data-key="recent_results"><?php echo $stats['recent_results']; ?></div>
+            <div class="brm-stat-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="brm-stat-content">
+                <h3>Recent Results (7 days)</h3>
+                <div class="brm-stat-number" data-key="recent_results"><?php echo $stats['recent_results']; ?></div>
+            </div>
         </div>
-        
-        <div class="brm-stat-card">
-            <h3>Sentiment Breakdown</h3>
-            <div class="brm-sentiment-stats">
-                <?php foreach ($stats['by_sentiment'] as $sentiment => $count): ?>
-                    <div class="brm-sentiment-item">
-                        <span class="sentiment-<?php echo $sentiment; ?>"><?php echo ucfirst($sentiment); ?></span>
-                        <span class="count"><?php echo $count; ?></span>
-                    </div>
-                <?php endforeach; ?>
+
+        <div class="brm-stat-card brm-sentiment-card">
+            <div class="brm-stat-icon"><i class="fa-solid fa-face-smile"></i></div>
+            <div class="brm-stat-content">
+                <h3>Sentiment Breakdown</h3>
+                <div class="brm-sentiment-stats">
+                    <?php foreach ($stats['by_sentiment'] as $sentiment => $count): ?>
+                        <div class="brm-sentiment-item">
+                            <span class="sentiment-<?php echo $sentiment; ?>">
+                                <?php if ($sentiment === 'positive'): ?>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                <?php elseif ($sentiment === 'negative'): ?>
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                <?php else: ?>
+                                    <i class="fa-solid fa-circle-minus"></i>
+                                <?php endif; ?>
+                                <?php echo ucfirst($sentiment); ?>
+                            </span>
+                            <span class="count"><?php echo $count; ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
         </div>
         <?php
@@ -468,26 +608,50 @@ class BRM_Admin {
                                 <br><small><?php echo esc_html(wp_trim_words($result->content, 20)); ?></small>
                             <?php endif; ?>
                         </td>
-                        <td><?php echo esc_html($result->source); ?></td>
+                        <td><i class="fa-solid fa-globe"></i> <?php echo esc_html($result->source); ?></td>
                         <td>
                             <span class="brm-type-badge type-<?php echo esc_attr($result->type); ?>">
-                                <?php echo esc_html(ucfirst($result->type)); ?>
+                                <?php
+                                $type_icon = 'fa-file-lines';
+                                switch ($result->type) {
+                                    case 'news': $type_icon = 'fa-newspaper'; break;
+                                    case 'social': $type_icon = 'fa-share-nodes'; break;
+                                    case 'blog': $type_icon = 'fa-blog'; break;
+                                    case 'forum': $type_icon = 'fa-comments'; break;
+                                }
+                                ?>
+                                <i class="fa-solid <?php echo $type_icon; ?>"></i> <?php echo esc_html(ucfirst($result->type)); ?>
                             </span>
                         </td>
                         <td>
                             <span class="brm-sentiment-badge sentiment-<?php echo esc_attr($result->sentiment); ?>">
+                                <?php if ($result->sentiment === 'positive'): ?>
+                                    <i class="fa-solid fa-circle-check"></i>
+                                <?php elseif ($result->sentiment === 'negative'): ?>
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                <?php else: ?>
+                                    <i class="fa-solid fa-circle-minus"></i>
+                                <?php endif; ?>
                                 <?php echo esc_html(ucfirst($result->sentiment)); ?>
                             </span>
                         </td>
-                        <td><?php echo number_format($result->relevance_score * 100, 1); ?>%</td>
-                        <td><?php echo date('M j, Y', strtotime($result->found_at)); ?></td>
-                        <td><?php echo isset($result->status) ? esc_html($result->status) : 'active'; ?></td>
+                        <td><i class="fa-solid fa-gauge"></i> <?php echo number_format($result->relevance_score * 100, 1); ?>%</td>
+                        <td><i class="fa-regular fa-calendar"></i> <?php echo date('M j, Y', strtotime($result->found_at)); ?></td>
                         <td>
-                            <a href="<?php echo esc_url($result->url); ?>" target="_blank" rel="noopener" class="button button-small">View</a>
-                            <?php if (($result->status ?? 'active') !== 'deleted'): ?>
-                                <button class="button button-small button-link-delete" onclick="brmDeleteResult(<?php echo intval($result->id); ?>)">Delete</button>
+                            <?php if (($result->status ?? 'active') === 'deleted'): ?>
+                                <span class="brm-status-badge status-deleted"><i class="fa-solid fa-trash"></i> Deleted</span>
                             <?php else: ?>
-                                <span class="description">Deleted</span>
+                                <span class="brm-status-badge status-active"><i class="fa-solid fa-circle-check"></i> Active</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <a href="<?php echo esc_url($result->url); ?>" target="_blank" rel="noopener" class="button button-small brm-btn-small">
+                                <i class="fa-solid fa-external-link"></i> View
+                            </a>
+                            <?php if (($result->status ?? 'active') !== 'deleted'): ?>
+                                <button class="button button-small button-link-delete brm-btn-delete" onclick="brmDeleteResult(<?php echo intval($result->id); ?>)">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -710,51 +874,59 @@ class BRM_Admin {
         $ai_service = new BRM_AI_Service();
         $api_configured = !empty($settings['api_key']);
         $last_scan = get_option('brm_last_scan_time', 'never');
-        
+
         // Get API test result
         $api_test = $ai_service->test_api_connectivity();
-        
+
         ?>
         <div class="brm-health-card">
-            <h3>System Status</h3>
+            <h3><i class="fa-solid fa-heart-pulse"></i> System Status</h3>
             <div class="brm-health-indicators">
                 <div class="brm-health-item">
-                    <span class="brm-health-label">API Configuration:</span>
+                    <span class="brm-health-label"><i class="fa-solid fa-key"></i> API Configuration:</span>
                     <span class="brm-health-status status-<?php echo $api_configured ? 'good' : 'warning'; ?>">
-                        <?php echo $api_configured ? 'Configured' : 'Not Configured'; ?>
+                        <?php if ($api_configured): ?>
+                            <i class="fa-solid fa-circle-check"></i> Configured
+                        <?php else: ?>
+                            <i class="fa-solid fa-triangle-exclamation"></i> Not Configured
+                        <?php endif; ?>
                     </span>
                 </div>
-                
+
                 <div class="brm-health-item">
-                    <span class="brm-health-label">API Connectivity:</span>
+                    <span class="brm-health-label"><i class="fa-solid fa-wifi"></i> API Connectivity:</span>
                     <span class="brm-health-status status-<?php echo $api_test['success'] ? 'good' : 'error'; ?>">
-                        <?php echo $api_test['success'] ? 'Connected' : 'Failed'; ?>
+                        <?php if ($api_test['success']): ?>
+                            <i class="fa-solid fa-circle-check"></i> Connected
+                        <?php else: ?>
+                            <i class="fa-solid fa-circle-xmark"></i> Failed
+                        <?php endif; ?>
                     </span>
                     <?php if (!$api_test['success']): ?>
                         <small class="brm-error-message"><?php echo esc_html($api_test['message']); ?></small>
                     <?php endif; ?>
                 </div>
-                
+
                 <div class="brm-health-item">
-                    <span class="brm-health-label">AI Provider:</span>
+                    <span class="brm-health-label"><i class="fa-solid fa-robot"></i> AI Provider:</span>
                     <span class="brm-health-status status-info">
-                        <?php echo esc_html(ucfirst($settings['ai_provider'] ?? 'Not Set')); ?>
+                        <i class="fa-solid fa-microchip"></i> <?php echo esc_html(ucfirst($settings['ai_provider'] ?? 'Not Set')); ?>
                     </span>
                 </div>
-                
+
                 <div class="brm-health-item">
-                    <span class="brm-health-label">Last Scan:</span>
+                    <span class="brm-health-label"><i class="fa-solid fa-calendar-check"></i> Last Scan:</span>
                     <span class="brm-health-status status-info">
-                        <?php echo $last_scan === 'never' ? 'Never' : date('M j, Y H:i', strtotime($last_scan)); ?>
+                        <i class="fa-regular fa-clock"></i> <?php echo $last_scan === 'never' ? 'Never' : date('M j, Y H:i', strtotime($last_scan)); ?>
                     </span>
                 </div>
-                
+
                 <div class="brm-health-actions">
-                    <button type="button" class="button button-secondary" onclick="brmTestAPI()">
-                        Test API Connection
+                    <button type="button" class="button button-secondary brm-btn-secondary" onclick="brmTestAPI()">
+                        <i class="fa-solid fa-plug-circle-check"></i> Test API Connection
                     </button>
-                    <button type="button" class="button button-secondary" onclick="brmRefreshStatus()">
-                        Refresh Status
+                    <button type="button" class="button button-secondary brm-btn-secondary" onclick="brmRefreshStatus()">
+                        <i class="fa-solid fa-rotate"></i> Refresh Status
                     </button>
                 </div>
             </div>

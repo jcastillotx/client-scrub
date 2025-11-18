@@ -85,8 +85,8 @@ class BRM_Monitor {
         if (empty($client->keywords)) {
             throw new Exception('No keywords configured for client');
         }
-        
-        // Get AI search results
+
+        // Get settings
         $settings = get_option('brm_settings', array());
         $max_results = isset($settings['max_results_per_client']) ? (int) $settings['max_results_per_client'] : 20;
         if ($max_results < 1) {
@@ -94,13 +94,27 @@ class BRM_Monitor {
         } elseif ($max_results > 100) {
             $max_results = 100; // cap to prevent excessive API usage
         }
-        $search_results = $this->ai_service->search_mentions(
-            $client->keywords,
-            $client->name,
-            $max_results
-        );
-        
-        if (isset($search_results['error'])) {
+
+        // Use hybrid search if any real search APIs are configured
+        $use_hybrid = !empty($settings['google_api_key']) || !empty($settings['newsapi_key']);
+
+        if ($use_hybrid) {
+            BRM_Database::log_monitoring_action($client->id, 'scan_method', 'Using hybrid search (Google/NewsAPI + AI)', 'info');
+            $search_results = $this->ai_service->search_mentions_hybrid(
+                $client->keywords,
+                $client->name,
+                $max_results
+            );
+        } else {
+            BRM_Database::log_monitoring_action($client->id, 'scan_method', 'Using AI-only search (configure Google/NewsAPI for better results)', 'info');
+            $search_results = $this->ai_service->search_mentions(
+                $client->keywords,
+                $client->name,
+                $max_results
+            );
+        }
+
+        if (isset($search_results['error']) && !isset($search_results['results'])) {
             throw new Exception($search_results['error']);
         }
         
@@ -317,13 +331,22 @@ class BRM_Monitor {
         global $wpdb;
         $logs_table = $wpdb->prefix . 'brm_monitoring_logs';
         $clients_table = $wpdb->prefix . 'brm_clients';
-        
-        return $wpdb->get_results("
-            SELECT l.*, c.name as client_name 
-            FROM $logs_table l 
-            LEFT JOIN $clients_table c ON l.client_id = c.id 
-            ORDER BY l.created_at DESC 
-            LIMIT $limit
-        ");
+
+        // Sanitize limit to prevent SQL injection
+        $limit = absint($limit);
+        if ($limit < 1) {
+            $limit = 20;
+        }
+        if ($limit > 1000) {
+            $limit = 1000;
+        }
+
+        return $wpdb->get_results($wpdb->prepare("
+            SELECT l.*, c.name as client_name
+            FROM $logs_table l
+            LEFT JOIN $clients_table c ON l.client_id = c.id
+            ORDER BY l.created_at DESC
+            LIMIT %d
+        ", $limit));
     }
 }
