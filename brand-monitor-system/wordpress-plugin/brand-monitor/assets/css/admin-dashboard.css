@@ -1,0 +1,31 @@
+.brand-monitor-dashboard .stat-box {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    padding: 16px;
+    margin-right: 16px;
+    display: inline-block;
+    min-width: 200px;
+}
+
+.brand-monitor-dashboard .stat-number {
+    font-size: 32px;
+    margin: 0;
+}
+
+.sentiment-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.sentiment-positive {
+    background: #2ecc71;
+}
+
+.sentiment-negative {
+    background: #e74c3c;
+}
+
+.sentiment-neutral {
+    background: #f1c40f;
+}
