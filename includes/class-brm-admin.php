@@ -933,8 +933,8 @@ class BRM_Admin {
         </div>
         
         <script>
-        function brmTestAPI() {
-            const button = event.target;
+        function brmTestAPI(event) {
+            const button = event ? event.target : document.querySelector('button[onclick*="brmTestAPI"]');
             const originalText = button.textContent;
             button.textContent = 'Testing...';
             button.disabled = true;

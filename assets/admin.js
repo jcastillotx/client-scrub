@@ -296,9 +296,9 @@ function refreshStats() {
     }, function(response) {
         if (response.success) {
             var s = response.data || {};
-            jQuery('.brm-stat-number[data-key="total_clients"]').text(s.total_clients ?? 0);
-            jQuery('.brm-stat-number[data-key="total_results"]').text(s.total_results ?? 0);
-            jQuery('.brm-stat-number[data-key="recent_results"]').text(s.recent_results ?? 0);
+            jQuery('.brm-stat-number[data-key="total_clients"]').text(s.total_clients !== undefined ? s.total_clients : 0);
+            jQuery('.brm-stat-number[data-key="total_results"]').text(s.total_results !== undefined ? s.total_results : 0);
+            jQuery('.brm-stat-number[data-key="recent_results"]').text(s.recent_results !== undefined ? s.recent_results : 0);
         }
     });
 }
