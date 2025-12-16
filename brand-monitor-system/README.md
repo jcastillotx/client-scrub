@@ -11,7 +11,6 @@ This repository contains the FastAPI backend, data processors, and WordPress plu
 - Apify API + Actors
 - Anthropic Claude Sonnet 4.5
 - WordPress plugin with PHP 8.0+ and React-ready admin assets
-- Docker + Docker Compose for local orchestration
 
 ## Repository Structure
 
@@ -26,7 +25,6 @@ brand-monitor-system/
       models/
       main.py
     requirements.txt
-    Dockerfile
     .env.example
     main.py
   wordpress-plugin/
@@ -38,7 +36,6 @@ brand-monitor-system/
       brand-monitor.php
       uninstall.php
       readme.txt
-  docker-compose.yml
 ```
 
 ## Database Schema Overview
@@ -51,7 +48,6 @@ Key tables include `clients`, `brand_keywords`, `monitoring_sources`, `scrape_jo
 - `app/scrapers` contains the Apify orchestrator plus dataset processing utilities.
 - `app/processors` integrates with Anthropic for sentiment analysis and leaves room for entity extraction, deduplication, and alerting logic.
 - `app/api/v1` exposes routers for authentication, scraping, webhooks, mentions, analytics, and usage tracking.
-- `docker-compose.yml` provisions FastAPI, Celery workers, PostgreSQL, and Redis.
 
 ## WordPress Plugin
 
@@ -68,8 +64,9 @@ Located in `wordpress-plugin/brand-monitor`. Key components:
 1. `cd backend && python -m venv venv && source venv/bin/activate`
 2. `pip install -r requirements.txt`
 3. `cp .env.example .env` and update secrets.
-4. `docker-compose up -d`
+4. Start PostgreSQL and Redis services locally or configure remote connection strings in `.env`.
 5. `alembic upgrade head` (migrations TBD).
 6. `uvicorn main:app --reload`
-7. Copy `wordpress-plugin/brand-monitor` into `wp-content/plugins/`, activate it, and configure API credentials.
-8. Trigger Apify scrapes, verify webhooks, run sentiment analysis, and test WordPress data sync.
+7. Start Celery worker: `celery -A app.tasks worker --loglevel=info`
+8. Copy `wordpress-plugin/brand-monitor` into `wp-content/plugins/`, activate it, and configure API credentials.
+9. Trigger Apify scrapes, verify webhooks, run sentiment analysis, and test WordPress data sync.

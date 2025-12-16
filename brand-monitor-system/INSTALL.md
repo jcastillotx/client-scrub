@@ -1,8 +1,9 @@
 # Installation Guide
 
 ## Prerequisites
-- Docker and Docker Compose installed locally
-- Python 3.11+ (for running FastAPI outside Docker if needed)
+- Python 3.11+
+- PostgreSQL 15
+- Redis 7
 - Node-compatible WordPress environment (PHP 8.0+, MySQL, etc.)
 
 ## Backend Setup
@@ -17,21 +18,26 @@
    cp .env.example .env
    # edit .env with database credentials, Redis URL, API tokens
    ```
-3. Install Python dependencies (optional when not using Docker):
+3. Install Python dependencies:
    ```
    python -m venv venv
    source venv/bin/activate
    pip install -r requirements.txt
    ```
-4. Start the Docker stack from the project root:
-   ```
-   docker-compose up -d
-   ```
+4. Start PostgreSQL and Redis services locally or configure remote connection strings in `.env`.
 5. Run database migrations (Alembic scripts TBD):
    ```
-   docker-compose exec backend alembic upgrade head
+   alembic upgrade head
    ```
-6. Access the API at `http://localhost:8000`.
+6. Start the FastAPI server:
+   ```
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+7. Start the Celery worker in a separate terminal:
+   ```
+   celery -A app.tasks worker --loglevel=info
+   ```
+8. Access the API at `http://localhost:8000`.
 
 ## WordPress Plugin Setup
 1. Copy `wordpress-plugin/brand-monitor` into your WordPress `wp-content/plugins/` directory.
@@ -41,5 +47,5 @@
 
 ## Post-Installation Checks
 - Trigger `/api/v1/scrape/trigger` for a client and confirm Apify webhooks arrive.
-- Ensure Redis, PostgreSQL, and Celery worker containers are healthy.
+- Ensure Redis, PostgreSQL, and Celery worker services are healthy.
 - Verify the WordPress dashboard displays mentions and sentiment analytics.
