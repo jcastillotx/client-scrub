@@ -362,7 +362,7 @@ class BRM_AI_Service {
         $parts = parse_url($url);
         if (!$parts || empty($parts['host'])) {
             // If it's missing scheme but looks like a domain
-            if (preg_match('/^[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$/', $url)) {
+            if (preg_match('/^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/', $url)) {
                 $url = 'https://' . $url;
             } else {
                 return '';
@@ -398,7 +398,7 @@ class BRM_AI_Service {
         // Reject private IPs
         if (filter_var($host, FILTER_VALIDATE_IP)) {
             $ip = $host;
-            if (preg_match('/^(10\\.|127\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.)/', $ip)) {
+            if (preg_match('/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/', $ip)) {
                 return false;
             }
         }

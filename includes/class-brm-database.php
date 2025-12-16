@@ -200,9 +200,9 @@ class BRM_Database {
             $where_values[] = $type;
         }
         
-        $where_clause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+        $where_clause = 'WHERE ' . implode(' AND ', $where);
         $sql = "SELECT * FROM $table $where_clause ORDER BY found_at DESC LIMIT %d";
-        $where_values[] = $limit;
+        $where_values[] = intval($limit);
         
         return $wpdb->get_results($wpdb->prepare($sql, $where_values));
     }
