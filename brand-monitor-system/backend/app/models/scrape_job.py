@@ -15,6 +15,7 @@ class ScrapeJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"))
     source_id = Column(UUID(as_uuid=True), nullable=True)
+    source_type = Column(String(50), nullable=True, index=True)
     apify_run_id = Column(String(100))
     status = Column(String(50), nullable=False)
     started_at = Column(DateTime)
