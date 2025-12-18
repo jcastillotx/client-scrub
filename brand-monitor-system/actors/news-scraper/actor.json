@@ -1,0 +1,63 @@
+{
+    "actorSpecification": 1,
+    "name": "brand-monitor-news-scraper",
+    "title": "Brand Monitor News Scraper",
+    "description": "Scrapes Google News and RSS feeds for brand mentions. Fast Cheerio-based scraper.",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "input": {
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "searchTerms": {
+                "title": "Search Terms",
+                "type": "array",
+                "description": "Keywords to search in news",
+                "editor": "stringList",
+                "items": { "type": "string" }
+            },
+            "rssFeedUrls": {
+                "title": "RSS Feed URLs",
+                "type": "array",
+                "description": "Optional RSS feed URLs to scrape",
+                "editor": "stringList",
+                "items": { "type": "string" }
+            },
+            "maxArticles": {
+                "title": "Maximum Articles",
+                "type": "integer",
+                "description": "Maximum articles per search term",
+                "default": 50,
+                "minimum": 1,
+                "maximum": 200
+            },
+            "language": {
+                "title": "Language",
+                "type": "string",
+                "description": "Language code for Google News",
+                "default": "en"
+            },
+            "country": {
+                "title": "Country",
+                "type": "string",
+                "description": "Country code for Google News",
+                "default": "US"
+            }
+        },
+        "required": ["searchTerms"]
+    },
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "fields": {
+                "url": { "type": "string" },
+                "title": { "type": "string" },
+                "description": { "type": "string" },
+                "source": { "type": "string" },
+                "publishedAt": { "type": "string" },
+                "searchTerm": { "type": "string" },
+                "source_type": { "type": "string" }
+            }
+        }
+    }
+}

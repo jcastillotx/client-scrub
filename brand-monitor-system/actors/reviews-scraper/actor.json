@@ -1,0 +1,70 @@
+{
+    "actorSpecification": 1,
+    "name": "brand-monitor-reviews-scraper",
+    "title": "Brand Monitor Reviews Scraper",
+    "description": "Multi-site review scraper supporting Trustpilot, Yelp, G2, Google Maps, and more.",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "input": {
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Review Page URLs",
+                "type": "array",
+                "description": "URLs to company/product review pages (Trustpilot, Yelp, G2, etc.)",
+                "editor": "stringList",
+                "items": { "type": "string" }
+            },
+            "searchTerms": {
+                "title": "Search Terms",
+                "type": "array",
+                "description": "Business names to search on review sites",
+                "editor": "stringList",
+                "items": { "type": "string" }
+            },
+            "sites": {
+                "title": "Review Sites",
+                "type": "array",
+                "description": "Which review sites to search",
+                "default": ["trustpilot", "yelp"],
+                "items": {
+                    "type": "string",
+                    "enum": ["trustpilot", "yelp", "g2", "capterra", "google_maps"]
+                }
+            },
+            "maxReviews": {
+                "title": "Maximum Reviews",
+                "type": "integer",
+                "description": "Maximum reviews per URL/search",
+                "default": 50,
+                "minimum": 1,
+                "maximum": 200
+            },
+            "minRating": {
+                "title": "Minimum Rating",
+                "type": "integer",
+                "description": "Only include reviews with at least this rating (1-5)",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 5
+            }
+        }
+    },
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "fields": {
+                "url": { "type": "string" },
+                "title": { "type": "string" },
+                "text": { "type": "string" },
+                "author": { "type": "string" },
+                "rating": { "type": "number" },
+                "date": { "type": "string" },
+                "businessName": { "type": "string" },
+                "platform": { "type": "string" },
+                "source_type": { "type": "string" }
+            }
+        }
+    }
+}
