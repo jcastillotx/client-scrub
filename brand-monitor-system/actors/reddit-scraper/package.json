@@ -1,0 +1,20 @@
+{
+    "name": "brand-monitor-reddit-scraper",
+    "version": "1.0.0",
+    "description": "Custom Reddit scraper for Brand Monitor - scrapes posts and comments",
+    "main": "src/main.js",
+    "scripts": {
+        "start": "node src/main.js",
+        "test": "jest"
+    },
+    "dependencies": {
+        "apify": "^3.1.0",
+        "crawlee": "^3.5.0",
+        "cheerio": "^1.0.0-rc.12"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0"
+    },
+    "author": "Brand Monitor",
+    "license": "MIT"
+}

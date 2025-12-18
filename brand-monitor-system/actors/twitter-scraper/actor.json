@@ -1,0 +1,69 @@
+{
+    "actorSpecification": 1,
+    "name": "brand-monitor-twitter-scraper",
+    "title": "Brand Monitor Twitter Scraper",
+    "description": "Scrapes Twitter/X for brand mentions. Optimized for brand monitoring with sentiment-ready output.",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "input": {
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "searchTerms": {
+                "title": "Search Terms",
+                "type": "array",
+                "description": "Keywords, hashtags, or @mentions to search for",
+                "editor": "stringList",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "maxTweets": {
+                "title": "Maximum Tweets",
+                "type": "integer",
+                "description": "Maximum number of tweets to collect per search term",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 1000
+            },
+            "includeReplies": {
+                "title": "Include Replies",
+                "type": "boolean",
+                "description": "Include reply tweets in results",
+                "default": true
+            },
+            "language": {
+                "title": "Language Filter",
+                "type": "string",
+                "description": "Filter tweets by language (e.g., 'en' for English)",
+                "default": "en"
+            },
+            "minLikes": {
+                "title": "Minimum Likes",
+                "type": "integer",
+                "description": "Only include tweets with at least this many likes",
+                "default": 0
+            }
+        },
+        "required": ["searchTerms"]
+    },
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "fields": {
+                "url": { "type": "string" },
+                "text": { "type": "string" },
+                "author": { "type": "string" },
+                "authorHandle": { "type": "string" },
+                "createdAt": { "type": "string" },
+                "likeCount": { "type": "integer" },
+                "retweetCount": { "type": "integer" },
+                "replyCount": { "type": "integer" },
+                "viewCount": { "type": "integer" },
+                "isReply": { "type": "boolean" },
+                "searchTerm": { "type": "string" },
+                "source_type": { "type": "string" }
+            }
+        }
+    }
+}

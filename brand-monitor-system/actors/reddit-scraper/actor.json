@@ -1,0 +1,85 @@
+{
+    "actorSpecification": 1,
+    "name": "brand-monitor-reddit-scraper",
+    "title": "Brand Monitor Reddit Scraper",
+    "description": "Scrapes Reddit search results and subreddits for brand mentions. Fast and efficient using Reddit's JSON API.",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "input": {
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "searchTerms": {
+                "title": "Search Terms",
+                "type": "array",
+                "description": "Keywords to search for on Reddit",
+                "editor": "stringList",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "subreddits": {
+                "title": "Subreddits",
+                "type": "array",
+                "description": "Specific subreddits to search in (optional)",
+                "editor": "stringList",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "maxPosts": {
+                "title": "Maximum Posts",
+                "type": "integer",
+                "description": "Maximum number of posts to collect per search term",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 500
+            },
+            "includeComments": {
+                "title": "Include Comments",
+                "type": "boolean",
+                "description": "Also scrape top comments from posts",
+                "default": true
+            },
+            "maxCommentsPerPost": {
+                "title": "Max Comments per Post",
+                "type": "integer",
+                "description": "Maximum comments to collect per post",
+                "default": 10
+            },
+            "sortBy": {
+                "title": "Sort By",
+                "type": "string",
+                "description": "How to sort results",
+                "default": "new",
+                "enum": ["new", "hot", "top", "relevance"]
+            },
+            "timeFilter": {
+                "title": "Time Filter",
+                "type": "string",
+                "description": "Time range for results",
+                "default": "week",
+                "enum": ["hour", "day", "week", "month", "year", "all"]
+            }
+        },
+        "required": ["searchTerms"]
+    },
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "fields": {
+                "url": { "type": "string" },
+                "title": { "type": "string" },
+                "text": { "type": "string" },
+                "author": { "type": "string" },
+                "subreddit": { "type": "string" },
+                "score": { "type": "integer" },
+                "numComments": { "type": "integer" },
+                "createdAt": { "type": "string" },
+                "searchTerm": { "type": "string" },
+                "postType": { "type": "string" },
+                "source_type": { "type": "string" }
+            }
+        }
+    }
+}
